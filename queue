@@ -1,0 +1,102 @@
+import asyncio
+import uvicorn
+from fastapi import FastAPI, Body, Request
+
+app = FastAPI()
+
+class RequestQueue:
+    def __init__(self, max_queue_size=9999, timeout=60, retry=3, batch_size=10):
+        self.queue = asyncio.Queue(max_queue_size=max_queue_size)
+        self.worker_task = None
+        self.timeout = timeout
+        self.retry = retry
+        self.batch_size = batch_size
+
+    async def add_request(self, request):
+        await self.queue.put(request)
+        return {"message": "Request added to queue."}
+
+    async def worker(self):
+        while True:
+            try:
+                # ดึงคำขอจากคิวเรื่อยๆ จนกว่าจะไม่มีคำขอเหลือ
+                batch = []
+                while True:
+                    try:
+                        request = await self.queue.get()  # ดึงคำขอจากคิว
+                        batch.append(request)
+                        if not self.queue.qsize():
+                            break
+                    except asyncio.QueueEmpty:
+                        break
+
+                # ประมวลผลคำขอใน batch โดยใช้ asyncio.gather()
+                responses = await asyncio.gather(
+                    *[self.process_request(request) for request in batch],
+                    returning=True,
+                )
+
+                # บันทึกผลการประมวลผลของคำขอแต่ละรายการ
+                for response, request in zip(responses, batch):
+                    with open("logs.txt", "a") as f:
+                        f.write(f"{request}: {response}\n")
+                        f.write(f"{request.size} bytes, {request.filename}, {response.runtime}\n")
+
+                # ลบคิวที่ประมวลผลเสร็จแล้วออกจากคิว
+                for _ in range(len(batch)):
+                    self.queue.task_done()
+            except asyncio.CancelledError:
+                break
+
+    async def process_request(self, request):
+        # ประมวลผลคำขอแต่ละไฟล์
+        ...
+
+    async def start_worker(self):
+        while True:
+            await self.queue.join()
+            await self.stop_worker()
+            await self.start_new_worker()
+
+    async def start_new_worker(self):
+        self.worker_task = asyncio.create_task(self.worker())
+
+    async def stop_worker(self):
+        if self.worker_task:
+            self.worker_task.cancel()
+            await asyncio.gather(self.worker_task, return_exceptions=True)
+
+    def is_worker_running(self):
+        return self.worker_task is not None and not self.worker_task.done()
+
+    def get_worker_status(self):
+        if self.is_worker_running():
+            return {"message": "Worker is running."}
+        else:
+            return {"message": "Worker is not running."}
+
+request_queue = RequestQueue(max_queue_size=100, timeout=60, retry=3, batch_size=10)
+
+@app.get("/")
+async def root():
+    return {"message": "Hello, World!"}
+
+@app.post("/queue")
+async def queue(request: Request):
+    response = await request_queue.add_request(request)
+    return response
+
+@app.get("/worker")
+async def worker():
+    return request_queue.get_worker_status()
+
+@app.on_event("startup")
+async def startup():
+    await request_queue.start_new_worker()  # เริ่ม worker ใน startup
+
+@app.on_event("shutdown")
+async def shutdown():
+    await request_queue.stop_worker()
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
