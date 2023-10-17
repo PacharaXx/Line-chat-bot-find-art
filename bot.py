@@ -1,6 +1,7 @@
 import json
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage, ImageSendMessage, FlexSendMessage
+#  pip install line-bot-sdk
 from sentence_transformers import util
 from PIL import Image
 import glob

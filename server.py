@@ -10,7 +10,7 @@ import os
 import logging
 
 # Load .env file
-load_dotenv('serverPROJECT/.env')
+load_dotenv('./.env')
 ip: str = os.getenv('IP')
 token: str = os.getenv('TOKEN')
 chanel_secret: str = os.getenv('CHANNEL_SECRET')
