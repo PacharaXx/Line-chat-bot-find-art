@@ -70,7 +70,6 @@ class ImageSearcher:
 
 
 # just for run test
-
 if __name__ == '__main__':
     # Create an ImageSearcher object
     image_searcher = ImageSearcher()

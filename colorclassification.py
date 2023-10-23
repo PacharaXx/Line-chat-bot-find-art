@@ -134,5 +134,5 @@ if __name__ == "__main__":
     filename = "imgsearch/target.jpg"  # Provide the path to your image file
     quantizer = ColorQuantizer(filename)
     result = quantizer.quantize(5)
-    quantizer.visualize_palette()
     print(result)
+    quantizer.visualize_palette()
