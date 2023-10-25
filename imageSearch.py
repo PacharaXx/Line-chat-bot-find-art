@@ -2,6 +2,7 @@ import json
 from sentence_transformers import SentenceTransformer, util
 from PIL import Image
 import glob
+import sqlite3
 
 class ImageSearcher:
     def __init__(self):
@@ -23,13 +24,38 @@ class ImageSearcher:
         self.model = SentenceTransformer(self.model)
 
     def load_images(self):
-        encoded_images =    self.model.encode([Image.open(filepath) for filepath in self.image_names],
-                                           batch_size=128, convert_to_tensor=True, show_progress_bar=True)
-        # print len of image
-        print(len(encoded_images))
-        self.encoded_images = encoded_images
+        try:
+            encoded_images =    self.model.encode([Image.open(filepath) for filepath in self.image_names],
+                                            batch_size=128, convert_to_tensor=True, show_progress_bar=True)
+            print('len encoded_images',len(encoded_images))
+            self.encoded_images = encoded_images
+        except Exception as e:
+            print(e)
+            return e
 
-    def find_most_similar_images(self, target_image):
+    def load_images_from_db(self,color):
+        # Load the image names jpg and jpeg in db
+        # fetch image names from db to list by color
+        conn = sqlite3.connect('test.db')
+        cursor = conn.cursor()
+        try:
+            # Fetch image URLs based on the specified color
+            cursor.execute("SELECT image_url FROM Artworks WHERE artwork_id IN (SELECT artwork_id FROM ArtworkColors WHERE color_name = ?)", (color,))
+            
+            # Fetch the results as a list of image URLs
+            image_urls = [f'./imgsearch/{row[0]}' for row in cursor.fetchall()]
+            print(image_urls)
+            self.image_names = image_urls
+
+        except sqlite3.Error as e:
+            print("Error fetching image URLs from the database:", str(e))
+        finally:
+            # Close the cursor and the database connection
+            cursor.close()
+            conn.close()
+        pass
+
+    def find_most_similar_images(self, target_image, color):
         encoded_target_image = self.model.encode(target_image, convert_to_tensor=True)
 
         # Find similar images to the target image
@@ -54,17 +80,15 @@ class ImageSearcher:
 
     
     def run_test(self):
-        most_similar_image_path, score = self.find_most_similar_images(self.target)
-        # Return the top three similar images path and their scores
-        response = [
-            {'most_similar_image_path_1': most_similar_image_path[0],
-            'score_1': score[0]},
-            {'most_similar_image_path_2': most_similar_image_path[1],
-            'score_2': score[1]},
-            {'most_similar_image_path_3': most_similar_image_path[2],
-            'score_3': score[2]}
-        ]
-
+        response = []
+        color = ['Red','Blue','Yellow']
+        for color in color:
+            most_similar_image_path, score = self.find_most_similar_images(self.target,color)
+            if score[0] >= 0.9:
+                break
+        if (len(most_similar_image_path) <= 2):
+            for i in range(len(most_similar_image_path)):
+                response.append({'most_similar_image_path': most_similar_image_path[i], 'score': score[i]})
         json_response = json.dumps(response)
         return json_response
 
@@ -77,29 +101,31 @@ if __name__ == '__main__':
     image_searcher.load_model()
     print('create image_searcher success')
 
-    # Load the image names jpg and jpeg
-    image_names = list(glob.glob('./imgsearch/*.jpg') + glob.glob('./imgsearch/*.jpeg'))
-    image_searcher.set_image_names(image_names)  # No need to assign this to a variable
-    print('load image_names success')
+    image_searcher.load_images_from_db('Red')
+
+    # # Load the image names jpg and jpeg
+    # image_names = list(glob.glob('./imgsearch/*.jpg') + glob.glob('./imgsearch/*.jpeg'))
+    # image_searcher.set_image_names(image_names)  # No need to assign this to a variable
+    # print('load image_names success')
 
     # Load the encoded images
     image_searcher.load_images()
     print('load encoded_images success')
 
     # Test the API with a sample image file
-    image_searcher.set_target(Image.open('./serverPROJECT/target/target.jpg'))
+    image_searcher.set_target(Image.open('./target/target.jpg'))
     print('set target success')
     response = image_searcher.run_test()
     print(response)
     # print("Most similar image path:", response['most_similar_image_path'])
     # print("Score:", response['score'])
 
-    # Test the API with a sample image file
-    target_image2 = Image.open('./237047.jpg')  # Load your target image
-    most_similar_image_path2 = image_searcher.find_most_similar_image(target_image2)
-    print("Most similar image path:", most_similar_image_path2)
-    print("Score:", util.pytorch_cos_sim(image_searcher.encoded_images, image_searcher.model.encode(target_image2, convert_to_tensor=True)))
-    # show the most similar image
-    most_similar_image2 = Image.open(most_similar_image_path2)
-    most_similar_image2.show()
+    # # Test the API with a sample image file
+    # target_image2 = Image.open('./237047.jpg')  # Load your target image
+    # most_similar_image_path2 = image_searcher.find_most_similar_image(target_image2)
+    # print("Most similar image path:", most_similar_image_path2)
+    # print("Score:", util.pytorch_cos_sim(image_searcher.encoded_images, image_searcher.model.encode(target_image2, convert_to_tensor=True)))
+    # # show the most similar image
+    # most_similar_image2 = Image.open(most_similar_image_path2)
+    # most_similar_image2.show()
     
