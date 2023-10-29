@@ -4,7 +4,6 @@ from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
 from colorclassification import ColorQuantizer
-import glob
 from PIL import Image
 from dotenv import load_dotenv
 import os
@@ -37,7 +36,9 @@ async def index():
 async def webhook(request: Request):
     # Parse the webhook event
     body = await request.json()
+    # Get the X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
+    # return status 200
     events = body['events']
     print(events)
     global users_data
@@ -47,8 +48,20 @@ async def webhook(request: Request):
             user_id = body['events'][0]['source']['userId']
             message = body['events'][0]['message']['text']
 
+            print(events)
             if message == 'ค้นหาด้วยภาพ':
-                ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
+                # display log in terminal
+                print(user_id)
+                print(message)
+                # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
+                reply_token = body['events'][0]['replyToken']
+                result = BotLine.reply(reply_token, message)
+
+                # Check the result
+                if result == 'Success':
+                    print("Reply sent successfully.")
+                else:
+                    print("Reply sending failed. Error:", result)
                 users_data.append({'user_id': user_id, 'Phase': 'Waiting for image'})
                 return {'message': 'success'}
 
@@ -75,6 +88,10 @@ async def webhook(request: Request):
             ImgSearchBotLine.push_image(user_id, most_similar_image_path[1])
             ImgSearchBotLine.push_image(user_id, most_similar_image_path[2])
             users_data.append({'user_id': user_id, 'Phase': 'Image sent'})
+            return {'message': 'success'}
+        else:
+            print('else')
+            # return status 200
             return {'message': 'success'}
 
     except Exception as e:
@@ -112,7 +129,7 @@ if __name__ == '__main__':
     BotLine = ImgSearchBotLine(token, chanel_secret)
     
     try:
-        uvicorn.run(app, host=ip, port=3333)
+        uvicorn.run(app, host=ip, port=80)
     except Exception as e:
         print(e)
         exit(0)
