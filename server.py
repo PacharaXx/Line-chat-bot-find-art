@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
+from colorclassification import ColorQuantizer
 import glob
 from PIL import Image
 from dotenv import load_dotenv
@@ -98,11 +99,11 @@ if __name__ == '__main__':
     image_searcher.load_model()
     logging.info('load model success')
 
-    # Load the image names jpg and jpeg
-    image_names = list(glob.glob('./imgsearch/*.jpg') + glob.glob('./imgsearch/*.jpeg') + glob.glob('./imgsearch/*.png'))
-    # Set the image names
-    image_searcher.set_image_names(image_names)
-    logging.info('set image_names success')
+    # # Load the image names jpg and jpeg
+    # image_names = list(glob.glob('./imgsearch/*.jpg') + glob.glob('./imgsearch/*.jpeg') + glob.glob('./imgsearch/*.png'))
+    # # Set the image names
+    # image_searcher.set_image_names(image_names)
+    # logging.info('set image_names success')
 
     # Load the encoded images
     image_searcher.load_images()

@@ -1,7 +1,7 @@
 import json
 from sentence_transformers import SentenceTransformer, util
 from PIL import Image
-import glob
+from colorclassification import ColorQuantizer
 import sqlite3
 
 class ImageSearcher:
@@ -10,6 +10,7 @@ class ImageSearcher:
         self.encoded_images = None
         self.image_names = None
         self.target = None
+        self.list_color_target = []
 
     def set_image_names(self, image_names):
         self.image_names = image_names
@@ -20,13 +21,19 @@ class ImageSearcher:
     def set_target(self, target):
         self.target = target
 
+    def set_list_color_target(self):
+        quantizer = ColorQuantizer(self.target)
+        result = quantizer.quantize(5)
+        print(result)
+        self.list_color_target = result
+
     def load_model(self):
         self.model = SentenceTransformer(self.model)
 
     def load_images(self):
         try:
             encoded_images =    self.model.encode([Image.open(filepath) for filepath in self.image_names],
-                                            batch_size=128, convert_to_tensor=True, show_progress_bar=True)
+                                            batch_size=250, convert_to_tensor=True, show_progress_bar=True)
             print('len encoded_images',len(encoded_images))
             self.encoded_images = encoded_images
         except Exception as e:
@@ -46,7 +53,6 @@ class ImageSearcher:
             image_urls = [f'./imgsearch/{row[0]}' for row in cursor.fetchall()]
             print(image_urls)
             self.image_names = image_urls
-
         except sqlite3.Error as e:
             print("Error fetching image URLs from the database:", str(e))
         finally:
@@ -55,7 +61,7 @@ class ImageSearcher:
             conn.close()
         pass
 
-    def find_most_similar_images(self, target_image, color):
+    def find_most_similar_images(self, target_image):
         encoded_target_image = self.model.encode(target_image, convert_to_tensor=True)
 
         # Find similar images to the target image
@@ -81,9 +87,11 @@ class ImageSearcher:
     
     def run_test(self):
         response = []
-        color = ['Red','Blue','Yellow']
-        for color in color:
-            most_similar_image_path, score = self.find_most_similar_images(self.target,color)
+        colors = self.list_color_target
+        for color in colors:
+            self.load_images_from_db(color)
+            self.load_images()
+            most_similar_image_path, score = self.find_most_similar_images(self.target)
             if score[0] >= 0.9:
                 break
         if (len(most_similar_image_path) <= 2):
@@ -101,7 +109,7 @@ if __name__ == '__main__':
     image_searcher.load_model()
     print('create image_searcher success')
 
-    image_searcher.load_images_from_db('Red')
+    # image_searcher.load_images_from_db('Red')
 
     # # Load the image names jpg and jpeg
     # image_names = list(glob.glob('./imgsearch/*.jpg') + glob.glob('./imgsearch/*.jpeg'))
@@ -109,12 +117,13 @@ if __name__ == '__main__':
     # print('load image_names success')
 
     # Load the encoded images
-    image_searcher.load_images()
-    print('load encoded_images success')
+    # image_searcher.load_images()
+    # print('load encoded_images success')
 
     # Test the API with a sample image file
     image_searcher.set_target(Image.open('./target/target.jpg'))
     print('set target success')
+    image_searcher.set_list_color_target()
     response = image_searcher.run_test()
     print(response)
     # print("Most similar image path:", response['most_similar_image_path'])
