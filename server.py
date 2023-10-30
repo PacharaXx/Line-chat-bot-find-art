@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
+from linebot.models import TextSendMessage, ImageSendMessage
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
 from colorclassification import ColorQuantizer
@@ -8,6 +9,8 @@ from PIL import Image
 from dotenv import load_dotenv
 import os
 import logging
+from fastapi.responses import FileResponse
+import io
 
 # Load .env file
 load_dotenv('./.env')
@@ -59,35 +62,49 @@ async def webhook(request: Request):
 
                 # Check the result
                 if result == 'Success':
+                    users_data.append({'user_id': user_id, 'Phase': 'Waiting for image'})
                     print("Reply sent successfully.")
                 else:
                     print("Reply sending failed. Error:", result)
                 users_data.append({'user_id': user_id, 'Phase': 'Waiting for image'})
                 return {'message': 'success'}
 
-        # if it's a image
-        elif body['events'][0]['message']['type'] == 'image' and map(lambda x: x['Phase'], filter(lambda x: x['user_id'] == user_id, users_data)) == 'Waiting for image':
+        # if it's a image and map find if user_id in users_data and phase is 'Waiting for image'
+        elif body['events'][0]['message']['type'] == 'image' and len(list(filter(lambda x: x['user_id'] == body['events'][0]['source']['userId'] and x['Phase'] == 'Waiting for image', users_data))) > 0:
             print('Its a image !!!!!')
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
+            # Test the API with a sample image file
             with open(f'./{image_id}.jpg', 'wb') as f:
                 for chunk in image_content.iter_content():
                     f.write(chunk)
             # Test the API with a sample image file
             image_searcher.set_target(Image.open(f'./{image_id}.jpg'))
-            logging.info('set target success')
+            print('set target success')
             response = image_searcher.run_test()
-            print(response)
-            # change image path all in response to image url
-            most_similar_image_path = list(map(lambda x: f'https://{ip}/{x}', response))
-            # most_similar_image_path = list(map(lambda x: f'https://{ip}/imgsearch/{x}', response))
-            print(most_similar_image_path)
-            # send image to user
-            ImgSearchBotLine.push_image(user_id, most_similar_image_path[0])
-            ImgSearchBotLine.push_image(user_id, most_similar_image_path[1])
-            ImgSearchBotLine.push_image(user_id, most_similar_image_path[2])
-            users_data.append({'user_id': user_id, 'Phase': 'Image sent'})
+            print('Response: ', response)
+            # response is json
+            # in format [{'most_similar_image_path': most_similar_image_path, 'score': score}, ...]
+            # most_similar_image_path is path of image
+            # score is score of image
+            # get image from response and send to user
+            for i in range(len(response)):
+                # get image from response
+                image_path = response[i]['most_similar_image_path']
+                image_name = image_path.split('/')[-1]
+                # send image to user
+                line_bot_api.reply_message(
+                    body['events'][0]['replyToken'],
+                    ImageSendMessage(
+                        original_content_url=f'https://{ip}/imgsearch/{image_name}',
+                        preview_image_url=f'https://{ip}/imgsearch/{image_name}'
+                    )
+                )
+
+            # change phase to 'Image sent'
+            users_data = list(map(lambda x: {'user_id': x['user_id'], 'Phase': 'Image sent'} if x['user_id'] == user_id else x, users_data))
+            print('Image sent')
             return {'message': 'success'}
         else:
             print('else')
@@ -106,6 +123,18 @@ async def handle_user(user_id: int):
     # Do some processing.
     # Return a response to the user.
     return {'message': 'Request received '+str(user_id)}
+
+# Define a route to handle image requests.
+@app.get('/imgsearch/{image_name}')
+async def handle_image(image_name: str):
+    # Show the image.
+    return FileResponse(f'./imgsearch/{image_name}')
+
+# Define a route to handle image requests.
+@app.get('/{image_name}')
+async def handle_image_target(image_name: str):
+    # Show the image.
+    return FileResponse(f'./{image_name}')
     
 
 # Start the FastAPI server.
@@ -129,7 +158,7 @@ if __name__ == '__main__':
     BotLine = ImgSearchBotLine(token, chanel_secret)
     
     try:
-        uvicorn.run(app, host=ip, port=80)
+        uvicorn.run(app, host=ip, port=8080)
     except Exception as e:
         print(e)
         exit(0)
