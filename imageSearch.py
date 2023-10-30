@@ -24,6 +24,7 @@ class ImageSearcher:
     def set_list_color_target(self):
         try:
             quantizer = ColorQuantizer(self.target)
+            quantizer.load_image()
             result = quantizer.quantize(5)
             self.list_color_target = [color['ColorName'] for color in json.loads(result)]
             print('List color target:',self.list_color_target)
@@ -37,36 +38,23 @@ class ImageSearcher:
     def load_images(self):
         try:
             encoded_images =    self.model.encode([Image.open(filepath) for filepath in self.image_names],
-                                            batch_size=250, convert_to_tensor=True, show_progress_bar=True)
+                                            batch_size=128, convert_to_tensor=True, show_progress_bar=True)
             print('len encoded_images',len(encoded_images))
             self.encoded_images = encoded_images
         except Exception as e:
             print(e)
             return e
 
-    def load_images_from_db(self):
+    def load_images_from_db(self, color):
         try:
             # Load the image names jpg and jpeg in db
             # fetch image names from db to list by color
             conn = sqlite3.connect('test.db')
             cursor = conn.cursor()
-
-            # Create a comma-separated list of placeholders for each color in the list
-            placeholders = ', '.join(['?'] * len(self.list_color_target))
             
             # Create the SQL query using the IN operator and placeholders
-            query = f"""
-                SELECT image_url 
-                FROM Artworks 
-                WHERE artwork_id IN (
-                    SELECT artwork_id 
-                    FROM ArtworkColors 
-                    WHERE color_name IN ({placeholders})
-                )
-            """
-
-            # Execute the query with the color list as parameters
-            cursor.execute(query, self.list_color_target)
+            sql = f"SELECT image_url FROM Artworks WHERE artwork_id IN (SELECT artwork_id FROM ArtworkColors WHERE color_name = ?)"
+            cursor.execute(sql, (color,))
 
             # Fetch the results as a list of image URLs
             image_urls = [f'./imgsearch/{row[0]}' for row in cursor.fetchall()]
@@ -110,14 +98,6 @@ class ImageSearcher:
         try:
             print('target :',self.target)
             self.set_list_color_target()
-            print('set list_color_target success')
-            # Load the image from db
-            self.load_images_from_db()
-
-            print('list_color_target :',self.list_color_target)
-            print('image_names :',self.image_names)
-            print('encoded_images :',self.encoded_images)
-
 
             response = []
             colors = self.list_color_target
@@ -126,23 +106,16 @@ class ImageSearcher:
             for color in colors:
                 self.load_images_from_db(color)
                 self.load_images()
+                print('image_names :',self.image_names)
+                print('encoded_images :',self.encoded_images != None)
                 most_similar_image_path, score = self.find_most_similar_images(self.target)
-                if score[0] >= 0.9:
-                    break
-
-            if most_similar_image_path:  # Check if it has a value
-                for i in range(min(len(most_similar_image_path), 3)):
-                    response.append({'most_similar_image_path': most_similar_image_path[i], 'score': score[i]})
-
-            # Create a dictionary with the response data
-            response_dict = {'response': response}
-
-            # Convert the response dictionary to JSON
-            json_response = json.dumps(response_dict)
-            print(json_response)
-
-            # Return the JSON response
-            return json_response
+                if most_similar_image_path:  # Check if it has a value
+                    for i in range(min(len(most_similar_image_path), 3)):
+                        response.append({'most_similar_image_path': most_similar_image_path[i], 'score': score[i]})
+                    return response
+                else:
+                    response.append({'most_similar_image_path': 'No similar image found', 'score': 0.0})
+                    return response
         except Exception as e:
             # Handle exceptions and return an error message
             error_message = {'error': str(e)}

@@ -1,16 +1,15 @@
 import uvicorn
 from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import TextSendMessage, ImageSendMessage
+from linebot.models import ImageSendMessage
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
-from colorclassification import ColorQuantizer
 from PIL import Image
 from dotenv import load_dotenv
 import os
 import logging
 from fastapi.responses import FileResponse
-import io
+import time
 
 # Load .env file
 load_dotenv('./.env')
@@ -82,6 +81,7 @@ async def webhook(request: Request):
             # Test the API with a sample image file
             image_searcher.set_target(Image.open(f'./{image_id}.jpg'))
             print('set target success')
+            starttime = time.time()
             response = image_searcher.run_test()
             print('Response: ', response)
             # response is json
@@ -93,18 +93,25 @@ async def webhook(request: Request):
                 # get image from response
                 image_path = response[i]['most_similar_image_path']
                 image_name = image_path.split('/')[-1]
+                print('image_name: ', image_name)
                 # send image to user
-                line_bot_api.reply_message(
-                    body['events'][0]['replyToken'],
+                line_bot_api.push_message(
+                    user_id,
                     ImageSendMessage(
-                        original_content_url=f'https://{ip}/imgsearch/{image_name}',
-                        preview_image_url=f'https://{ip}/imgsearch/{image_name}'
+                        original_content_url=f' https://d776-154-197-124-214.ngrok-free.app/imgsearch/{image_name}',
+                        preview_image_url=f' https://d776-154-197-124-214.ngrok-free.app/imgsearch/{image_name}'
                     )
                 )
+                print('send image success')
 
+            totaltime = time.time() - starttime
+            print('totaltime to find: ', totaltime)
             # change phase to 'Image sent'
             users_data = list(map(lambda x: {'user_id': x['user_id'], 'Phase': 'Image sent'} if x['user_id'] == user_id else x, users_data))
+            users_data.remove({'user_id': user_id, 'Phase': 'Image sent'})
             print('Image sent')
+            # print users_data
+            print(users_data)
             return {'message': 'success'}
         else:
             print('else')
@@ -158,7 +165,7 @@ if __name__ == '__main__':
     BotLine = ImgSearchBotLine(token, chanel_secret)
     
     try:
-        uvicorn.run(app, host=ip, port=8080)
+        uvicorn.run(app, host='localhost', port=8080)
     except Exception as e:
         print(e)
         exit(0)

@@ -41,11 +41,11 @@ class ColorQuantizer:
     def load_image(self):
         self.start_time = time.time()
         try:
-            img = Image.open(self.filename)
-            img.thumbnail(self.thumbnail_size)
+            self.img = self.filename
+            self.img.thumbnail(self.thumbnail_size)
             self.end_time = time.time()
             print(f"Time taken to LOAD_IMAGE: {self.end_time - self.start_time:.2f} seconds")
-            return img
+            return self.img
         except (IOError, Image.DecompressionBombError):
             raise ValueError("Error loading image")
 
@@ -224,7 +224,7 @@ class ColorQuantizer:
                     i += 1
             # ------- for debug -------
             print(response)
-            self.visualize_palette()
+            # self.visualize_palette()
             # -------------------------
             db.commit()
         cursor.close()
