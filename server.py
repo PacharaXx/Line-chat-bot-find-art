@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
-from detection import ImgArgumentation
+from detection import ImageCropper
 from PIL import Image
 from dotenv import load_dotenv
 import os
@@ -91,14 +91,15 @@ async def webhook(request: Request):
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
-            # change image_content to image by not save image_content to file
-            if isinstance(image_content.content, bytes):
-                image_content = Image.open(io.BytesIO(image_content.content))
+            
+            # send to crop in ImgArgumentation
+            imgArgumentation = ImageCropper()
+            imgArgumentation.set_img(Image.open(io.BytesIO(image_content.content)))
+            image_content = imgArgumentation.preprocess_and_crop_image()
             try:
                 image_searcher.set_target(image_content)
                 print('set target success')
             except Exception as e:
-                # if not found folder imgTarget
                 print(e)
                 return {'message': 'error'}
 

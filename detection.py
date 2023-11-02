@@ -1,66 +1,54 @@
 import cv2
 import numpy as np
+from PIL import Image
 
-class ImgArgumentation:
+class ImageProcessor:
     def __init__(self):
         self.img = None
 
     def set_img(self, img):
-        self.img = img
+        self.img = np.array(img)
 
-    def blur(self):
-        blur = cv2.GaussianBlur(self.img, (5, 5), 100)
-        return blur
-    
-    def canny(self):
-        edges = cv2.Canny(self.img, 10, 40)
-        return edges
-    
-    def find_contours(self):
-        contours, _ = cv2.findContours(self.img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        return contours
-    
-    def find_biggest_contour(self):
-        biggest_contour = max(self.find_contours(), key=cv2.contourArea)
-        return biggest_contour
-    
-    def find_bounding_box(self):
-        x, y, w, h = cv2.boundingRect(self.find_biggest_contour())
-        return x, y, w, h
-    
-    def crop(self):
-        x, y, w, h = self.find_bounding_box()
-        crop_img = self.img[y:y+h, x:x+w]
-        return crop_img
-    
-    def resize(self, width, height):
-        resize_img = cv2.resize(self.img, (width, height))
-        return resize_img
-    
-    def show(self, window_name):
-        cv2.imshow(window_name, self.img)
-        cv2.waitKey(0)
-    
-    # return the image that was cropped
-    def get_result(self):
-        return self.crop()
-    
-    def run(self):
-        self.set_img(self.img)
-        self.img = self.blur()
-        self.img = self.canny()
-        self.img = self.find_contours()
-        self.img = self.find_biggest_contour()
-        self.img = self.find_bounding_box()
-        self.img = self.crop()
-        self.img = self.resize(300, 300)
-        self.show('Result')
-        return self.get_result()
+    def preprocess_and_crop_image(self):
+        # Convert the input image to grayscale
+        grayscale_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+
+        # Remove noise
+        blur = cv2.GaussianBlur(grayscale_img, (5, 5), 200)
+
+        # Perform Canny edge detection
+        edges = cv2.Canny(blur, 100, 100)
+
+        # Find contours in the image as groups
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Initialize variables to store minimum and maximum coordinates
+        min_x, min_y = float('inf'), float('inf')
+        max_x = max_y = -float('inf')
+
+        # Find the bounding box of all contours
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            if w < 100 and h < 100:
+                continue
+            min_x = min(min_x, x)
+            min_y = min(min_y, y)
+            max_x = max(max_x, x + w)
+            max_y = max(max_y, y + h)
+
+        # Crop the image
+        cropped_img = self.img[min_y:max_y, min_x:max_x]
+
+        # Convert the processed image to a PIL Image to ensure it's in the expected format
+        result_image = Image.fromarray(cropped_img)
+        # change to RGB
+        result_image = result_image.convert('RGB')
+        return result_image
 
 
 # # Load the image
 # # img = cv2.imread('237050.jpg')
-# img = cv2.imread('236915.jpg')
+# img = cv2.imread('imgsearch/237047.jpg')
 
 # # Convert input image to grayscale
 # grayscale_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
