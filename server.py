@@ -121,7 +121,8 @@ async def webhook(request: Request):
                 image_name = image_path.split('/')[-1]
                 print('image_name: ', image_name)
                 # send image to user
-                BotLine.push_image(user_id, image_path)
+                image_pathUrl = f' https://d776-154-197-124-214.ngrok-free.app/{image_name}'
+                BotLine.push_image(user_id, image_pathUrl)
                 print('Send Image Success')
 
             totaltime = time.time() - starttime
