@@ -106,7 +106,7 @@ async def webhook(request: Request):
                         f.write(chunk)
             # Test the API with a sample image file
             try:
-                image_searcher.set_target(Image.open(f'.imgTarget/{image_id}.jpg'))
+                image_searcher.set_target(Image.open(f'/imgTarget/{image_id}.jpg'))
                 print('set target success')
             except Exception as e:
                 # if not found folder imgTarget
