@@ -95,13 +95,13 @@ async def webhook(request: Request):
             image_content = line_bot_api.get_message_content(image_id)
             # Test the API with a sample image file
             try:
-                with open(f'./imgTarget/{image_id}.jpg', 'wb') as f:
+                with open(f'/imgTarget/{image_id}.jpg', 'wb') as f:
                     for chunk in image_content.iter_content():
                         f.write(chunk)
             except Exception as e:
                 # if not found folder imgTarget
-                os.mkdir('./imgTarget')
-                with open(f'./imgTarget/{image_id}.jpg', 'wb') as f:
+                os.mkdir('/imgTarget')
+                with open(f'/imgTarget/{image_id}.jpg', 'wb') as f:
                     for chunk in image_content.iter_content():
                         f.write(chunk)
             # Test the API with a sample image file
