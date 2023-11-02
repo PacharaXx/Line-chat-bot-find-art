@@ -3,13 +3,15 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage, ImageSendMessage, FlexSendMessage
 #  pip install line-bot-sdk
 from sentence_transformers import util
-from PIL import Image
-import glob
+from linebot import LineBotSdkDeprecatedIn30
+import warnings
 
 
 class ImgSearchBotLine():
 
     def __init__(self, channel_access_token, channel_secret):
+        # Suppress warning messages
+        warnings.filterwarnings("ignore", category=LineBotSdkDeprecatedIn30)
         self.line_bot_api = LineBotApi(channel_access_token)
         self.handler = WebhookHandler(channel_secret)
 

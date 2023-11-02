@@ -70,7 +70,6 @@ async def webhook(request: Request):
             user_id = body['events'][0]['source']['userId']
             message = body['events'][0]['message']['text']
 
-            print(events)
             if message == 'ค้นหาด้วยภาพ':
                 # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
                 reply_token = body['events'][0]['replyToken']
@@ -87,7 +86,6 @@ async def webhook(request: Request):
 
         # if it's a image and map find if user_id in users_data and phase is 'Waiting for image'
         elif body['events'][0]['message']['type'] == 'image' and len(list(filter(lambda x: x['user_id'] == body['events'][0]['source']['userId'] and x['Phase'] == 'Waiting for image', users_data))) > 0:
-            print('Its a image !!!!!')
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
@@ -123,19 +121,14 @@ async def webhook(request: Request):
                 image_name = image_path.split('/')[-1]
                 print('image_name: ', image_name)
                 # send image to user
-                line_bot_api.push_message(
-                    user_id,
-                    ImageSendMessage(
-                        original_content_url=f' https://d776-154-197-124-214.ngrok-free.app/imgsearch/{image_name}',
-                        preview_image_url=f' https://d776-154-197-124-214.ngrok-free.app/imgsearch/{image_name}'
-                    )
-                )
-                print('send image success')
+                BotLine.push_image(user_id, image_path)
+                print('Send Image Success')
 
             totaltime = time.time() - starttime
-            print('totaltime to find: ', totaltime)
+            print('Total Time:', totaltime)
             # change phase to 'Image sent'
-            users_data = list(map(lambda x: {'user_id': x['user_id'], 'Phase': 'Image sent'} if x['user_id'] == user_id else x, users_data))
+            users_data[users_data.index({'user_id': user_id, 'Phase': 'Waiting for image'})]['Phase'] = 'Image sent'
+            # remove user_id and phase in users_data
             users_data.remove({'user_id': user_id, 'Phase': 'Image sent'})
             print('Image sent')
             # print users_data
@@ -176,9 +169,10 @@ async def handle_image_target(image_name: str):
 
 # Start the FastAPI server.
 if __name__ == '__main__':
-    # create instance of ImageSearcher
+
     image_searcher = ImageSearcher()
     image_searcher.set_model('clip-ViT-B-32')
+    logging.info('set model success')
     image_searcher.load_model()
     logging.info('load model success')
 
@@ -189,11 +183,11 @@ if __name__ == '__main__':
     # logging.info('set image_names success')
 
     # Load the encoded images
-    image_searcher.load_images()
-    logging.info('load images success')
+    # image_searcher.load_images()
+    # logging.info('load images success')
 
     BotLine = ImgSearchBotLine(token, chanel_secret)
-    
+
     try:
         uvicorn.run(app, host='localhost', port=8080)
     except Exception as e:
