@@ -126,12 +126,12 @@ class ImageSearcher:
 
 
 # just for run test
-if __name__ == '__main__':
-    # Create an ImageSearcher object
-    image_searcher = ImageSearcher()
-    image_searcher.set_model('clip-ViT-B-32')
-    image_searcher.load_model()
-    print('create image_searcher success')
+# if __name__ == '__main__':
+#     # Create an ImageSearcher object
+#     image_searcher = ImageSearcher()
+#     image_searcher.set_model('clip-ViT-B-32')
+#     image_searcher.load_model()
+#     print('create image_searcher success')
 
     # image_searcher.load_images_from_db('Red')
 
