@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
+from detection import ImgArgumentation
 from PIL import Image
 from dotenv import load_dotenv
 import os
@@ -11,6 +12,7 @@ from fastapi.responses import FileResponse
 import time
 import warnings
 from linebot import LineBotSdkDeprecatedIn30
+import io
 
 # Load .env file
 load_dotenv('./.env')
@@ -89,25 +91,17 @@ async def webhook(request: Request):
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
-            # Test the API with a sample image file
+            # change image_content to image by not save image_content to file
+            if isinstance(image_content.content, bytes):
+                image_content = Image.open(io.BytesIO(image_content.content))
             try:
-                with open(f'/imgTarget/{image_id}.jpg', 'wb') as f:
-                    for chunk in image_content.iter_content():
-                        f.write(chunk)
-            except Exception as e:
-                # if not found folder imgTarget
-                os.mkdir('/imgTarget')
-                with open(f'/imgTarget/{image_id}.jpg', 'wb') as f:
-                    for chunk in image_content.iter_content():
-                        f.write(chunk)
-            # Test the API with a sample image file
-            try:
-                image_searcher.set_target(Image.open(f'/imgTarget/{image_id}.jpg'))
+                image_searcher.set_target(image_content)
                 print('set target success')
             except Exception as e:
                 # if not found folder imgTarget
                 print(e)
                 return {'message': 'error'}
+
             starttime = time.time()
             response = image_searcher.run_test()
             # response is json
