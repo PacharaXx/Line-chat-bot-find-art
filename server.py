@@ -72,9 +72,6 @@ async def webhook(request: Request):
 
             print(events)
             if message == 'ค้นหาด้วยภาพ':
-                # display log in terminal
-                print(user_id)
-                print(message)
                 # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
                 reply_token = body['events'][0]['replyToken']
                 result = BotLine.reply(reply_token, message)
@@ -115,7 +112,6 @@ async def webhook(request: Request):
                 return {'message': 'error'}
             starttime = time.time()
             response = image_searcher.run_test()
-            print('Response: ', response)
             # response is json
             # in format [{'most_similar_image_path': most_similar_image_path, 'score': score}, ...]
             # most_similar_image_path is path of image
@@ -144,6 +140,8 @@ async def webhook(request: Request):
             print('Image sent')
             # print users_data
             print(users_data)
+            #  remove temp image in folder imgTarget
+            os.remove(f'/imgTarget/{image_id}.jpg')
             return {'message': 'success'}
         else:
             print('else')
