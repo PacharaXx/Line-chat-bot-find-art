@@ -13,7 +13,7 @@ class Point:
         self.ct = ct
 
 class ColorQuantizer:
-    def __init__(self, filename, thumbnail_size=(250, 250), min_diff=1):
+    def __init__(self, filename, thumbnail_size=(128, 128), min_diff=1):
         self.start_time = time.time()
         self.filename = filename
         self.thumbnail_size = thumbnail_size
