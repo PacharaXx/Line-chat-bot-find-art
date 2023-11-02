@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
-from detection import ImageCropper
+from detection import ImageProcessor
 from PIL import Image
 from dotenv import load_dotenv
 import os
@@ -93,7 +93,7 @@ async def webhook(request: Request):
             image_content = line_bot_api.get_message_content(image_id)
             
             # send to crop in ImgArgumentation
-            imgArgumentation = ImageCropper()
+            imgArgumentation = ImageProcessor()
             imgArgumentation.set_img(Image.open(io.BytesIO(image_content.content)))
             image_content = imgArgumentation.preprocess_and_crop_image()
             try:
@@ -116,7 +116,7 @@ async def webhook(request: Request):
                 image_name = image_path.split('/')[-1]
                 print('image_name: ', image_name)
                 # send image to user
-                image_pathUrl = f' https://d776-154-197-124-214.ngrok-free.app/imgsearch/{image_name}'
+                image_pathUrl = f' https://954f-154-197-124-214.ngrok-free.app/imgsearch/{image_name}'
                 BotLine.push_image(user_id, image_pathUrl)
                 print('Send Image Success')
 
