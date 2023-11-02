@@ -10,6 +10,7 @@ import os
 import logging
 from fastapi.responses import FileResponse
 import time
+import sys
 
 # Load .env file
 load_dotenv('./.env')
@@ -29,6 +30,7 @@ webhook_handler = WebhookHandler(chanel_secret)
 users_data = []
 # users_data = [{'user_id': 1, 'Phase': 'Waiting for image'}, {'user_id': 2, 'Phase': 'Waiting for image'}]
 
+
 @app.get('/')
 async def index():
     return {'message': 'Hello, World!'}
@@ -40,10 +42,27 @@ async def webhook(request: Request):
     body = await request.json()
     # Get the X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
-    # return status 200
-    events = body['events']
-    print(events)
+    
     global users_data
+    events = body['events']
+    current_time = time.time()
+    user_id = body['events'][0]['source']['userId']
+    message_type = (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'text' else (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'image' else 'None'
+    message_body = (body['events'][0]['message']['text']) if body['events'][0]['message']['type'] == 'text' else 'None'
+    matching_users = list(filter(lambda x: x['user_id'] == user_id, users_data))
+
+    log_message = (
+        f"---------Webhook Event---------\n"
+        f"Current Time: {current_time}\n"
+        f"UserID: {user_id}\n"
+        f"Message Type: {message_type}\n"
+        f"Message Text: {message_body}\n"
+        f"Matching Users: {matching_users}\n"
+        f"Phase: {(matching_users[0]['Phase'] if matching_users[0]['Phase'] else 'None') if len(matching_users) > 0 else 'None'}\n"
+        f"--------------------------------\n"
+    )
+    print(log_message)
+    
     # Handle webhook body
     try:
         if body['events'][0]['message']['type'] == 'text':
@@ -75,12 +94,24 @@ async def webhook(request: Request):
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
             # Test the API with a sample image file
-            with open(f'./{image_id}.jpg', 'wb') as f:
-                for chunk in image_content.iter_content():
-                    f.write(chunk)
+            try:
+                with open(f'./imgTarget/{image_id}.jpg', 'wb') as f:
+                    for chunk in image_content.iter_content():
+                        f.write(chunk)
+            except Exception as e:
+                # if not found folder imgTarget
+                os.mkdir('./imgTarget')
+                with open(f'./imgTarget/{image_id}.jpg', 'wb') as f:
+                    for chunk in image_content.iter_content():
+                        f.write(chunk)
             # Test the API with a sample image file
-            image_searcher.set_target(Image.open(f'./{image_id}.jpg'))
-            print('set target success')
+            try:
+                image_searcher.set_target(Image.open(f'.imgTarget/{image_id}.jpg'))
+                print('set target success')
+            except Exception as e:
+                # if not found folder imgTarget
+                print(e)
+                return {'message': 'error'}
             starttime = time.time()
             response = image_searcher.run_test()
             print('Response: ', response)
