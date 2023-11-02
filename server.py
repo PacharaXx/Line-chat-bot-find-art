@@ -1,7 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import ImageSendMessage
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
 from PIL import Image
@@ -10,7 +9,8 @@ import os
 import logging
 from fastapi.responses import FileResponse
 import time
-import sys
+import warnings
+from linebot import LineBotSdkDeprecatedIn30
 
 # Load .env file
 load_dotenv('./.env')
@@ -121,7 +121,7 @@ async def webhook(request: Request):
                 image_name = image_path.split('/')[-1]
                 print('image_name: ', image_name)
                 # send image to user
-                image_pathUrl = f' https://d776-154-197-124-214.ngrok-free.app/{image_name}'
+                image_pathUrl = f' https://d776-154-197-124-214.ngrok-free.app/imgsearch/{image_name}'
                 BotLine.push_image(user_id, image_pathUrl)
                 print('Send Image Success')
 
@@ -170,6 +170,8 @@ async def handle_image_target(image_name: str):
 
 # Start the FastAPI server.
 if __name__ == '__main__':
+    # Suppress warning messages
+    warnings.filterwarnings("ignore", category=LineBotSdkDeprecatedIn30)
 
     image_searcher = ImageSearcher()
     image_searcher.set_model('clip-ViT-B-32')
