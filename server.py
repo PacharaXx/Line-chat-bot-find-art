@@ -45,7 +45,8 @@ async def webhook(request: Request):
     
     global users_data
     events = body['events']
-    current_time = time.time()
+    # date and time in format Day month year,HH:MM:SS
+    current_time = time.strftime("%a %b %d %Y,%H:%M:%S", time.localtime())
     user_id = body['events'][0]['source']['userId']
     message_type = (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'text' else (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'image' else 'None'
     message_body = (body['events'][0]['message']['text']) if body['events'][0]['message']['type'] == 'text' else 'None'
