@@ -39,7 +39,6 @@ class ImageSearcher:
         try:
             encoded_images =    self.model.encode([Image.open(filepath) for filepath in self.image_names],
                                             batch_size=128, convert_to_tensor=True, show_progress_bar=True)
-            print('len encoded_images',len(encoded_images))
             self.encoded_images = encoded_images
         except Exception as e:
             print(e)
@@ -106,12 +105,12 @@ class ImageSearcher:
             for color in colors:
                 self.load_images_from_db(color)
                 self.load_images()
-                print('image_names :',self.image_names)
-                print('encoded_images :',self.encoded_images != None)
                 most_similar_image_path, score = self.find_most_similar_images(self.target)
                 if most_similar_image_path:  # Check if it has a value
                     for i in range(min(len(most_similar_image_path), 3)):
                         response.append({'most_similar_image_path': most_similar_image_path[i], 'score': score[i]})
+                        # print name and score
+                        print('[ Most similar image path:', most_similar_image_path[i], 'Score:', score[i], ']')
                     return response
                 else:
                     response.append({'most_similar_image_path': 'No similar image found', 'score': 0.0})
