@@ -1,4 +1,3 @@
-import json
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage, ImageSendMessage, FlexSendMessage
 
@@ -6,6 +5,8 @@ from linebot.models import TextSendMessage, ImageSendMessage, FlexSendMessage
 from linebot import LineBotSdkDeprecatedIn30
 import warnings
 
+from dotenv import load_dotenv
+import os
 
 class ImgSearchBotLine:
     def __init__(self, channel_access_token, channel_secret):
@@ -56,9 +57,10 @@ class ImgSearchBotLine:
                     url = data["image_url"].split("/")[-1]
                 else:
                     url = data["image_url"]
-                ip = "https://130tc6ld-8080.asse.devtunnels.ms/imgsearch/"
+                # get env
+                load_dotenv('./.env')
+                ip = os.getenv("IP_URL")+'imgsearch/'
                 url = ip + url
-                print(url)
                 bubble_content = {
                     "type": "bubble",
                     "hero": {
