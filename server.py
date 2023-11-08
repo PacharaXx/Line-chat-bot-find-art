@@ -44,6 +44,14 @@ async def webhook(request: Request):
     body = await request.json()
     # Get the X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
+    # Handle webhook body test
+    # try:
+    #     webhook_handler.handle(body, signature)
+    # except Exception as e:
+    #     print(e)
+    #     return {'message': 'error'}
+    # return {'message': 'success'}
+
     
     global users_data
     events = body['events']
@@ -64,7 +72,6 @@ async def webhook(request: Request):
         f"Phase: {(matching_users[0]['Phase'] if matching_users[0]['Phase'] else 'None') if len(matching_users) > 0 else 'None'}\n"
         f"--------------------------------\n"
     )
-    print(log_message)
     
     # Handle webhook body
     try:
@@ -81,9 +88,9 @@ async def webhook(request: Request):
                 if result == 'Success':
                     users_data.append({'user_id': user_id, 'Phase': 'Waiting for image'})
                     print("Reply sent successfully.")
+                    print(log_message)
                 else:
                     print("Reply sending failed. Error:", result)
-                users_data.append({'user_id': user_id, 'Phase': 'Waiting for image'})
                 return {'message': 'success'}
 
         # if it's a image and map find if user_id in users_data and phase is 'Waiting for image'
@@ -113,10 +120,14 @@ async def webhook(request: Request):
             for i in range(len(response)):
                 # get image from response
                 image_path = response[i]['most_similar_image_path']
-                image_name = image_path.split('/')[-1]
+                # image_name = image_path.split('/')[-1]
+                image_name = image_path
                 print('image_name: ', image_name)
                 # send image to user
-                image_pathUrl = f' https://954f-154-197-124-214.ngrok-free.app/imgsearch/{image_name}'
+                if image_name.startswith('http'):
+                    image_pathUrl = image_name
+                else:
+                    image_pathUrl = f' https://pn6gs89h-8080.asse.devtunnels.ms/imgsearch/{image_name}'
                 BotLine.push_image(user_id, image_pathUrl)
                 print('Send Image Success')
 
@@ -128,15 +139,13 @@ async def webhook(request: Request):
             users_data.remove({'user_id': user_id, 'Phase': 'Image sent'})
             print('Image sent')
             # print users_data
-            print(users_data)
-            #  remove temp image in folder imgTarget
-            os.remove(f'/imgTarget/{image_id}.jpg')
+            print('Users Data:', users_data)
+            print(log_message)
             return {'message': 'success'}
         else:
             print('else')
             # return status 200
             return {'message': 'success'}
-
     except Exception as e:
         print(e)
         return {'message': 'error'}
@@ -152,6 +161,11 @@ async def handle_user(user_id: int):
 
 # Define a route to handle image requests.
 @app.get('/imgsearch/{image_name}')
+async def handle_image(image_name: str):
+    # Show the image.
+    return FileResponse(f'./imgsearch/{image_name}')
+
+@app.get('//imgsearch/{image_name}')
 async def handle_image(image_name: str):
     # Show the image.
     return FileResponse(f'./imgsearch/{image_name}')

@@ -6,6 +6,7 @@ import sqlite3
 import json
 import time
 from PIL import Image
+import requests
 class Point:
     def __init__(self, coords, n, ct):
         self.coords = coords
@@ -173,7 +174,7 @@ class ColorQuantizer:
     def send_All_to_DB(self):
         self.start_time = time.time()
         i = 1
-        db = sqlite3.connect('test.db')
+        db = sqlite3.connect('test1.db')
         cursor = db.cursor()
         # # Add artwork_id to ArtworkColors with NULL color_id and color_name if it doesn't exist
         # cursor.execute("""
@@ -194,7 +195,10 @@ class ColorQuantizer:
             print('ImageUrl: ',len(image_urls))
         
         for img_url in image_urls:
-            self.img = Image.open('./imgsearch/' + img_url[0])
+            if img_url[0].startswith('http'):
+                self.img = Image.open(requests.get(img_url[0], stream=True).raw)
+            else:
+                self.img = Image.open('./imgsearch/' + img_url[0])
             self.img.thumbnail(self.thumbnail_size)
             response = self.quantize(5)
 

@@ -3,6 +3,9 @@ from sentence_transformers import SentenceTransformer, util
 from PIL import Image
 from colorclassification import ColorQuantizer
 import sqlite3
+import requests
+import time
+from io import BytesIO
 
 class ImageSearcher:
     def __init__(self):
@@ -36,35 +39,54 @@ class ImageSearcher:
         self.model = SentenceTransformer(self.model)
 
     def load_images(self):
+        startLoadImage = time.time()
+        encoded_images = []
+        for filepath in self.image_names:
+            if filepath.startswith('http'):
+                image = Image.open('./imgsearch/'+filepath.split('/')[-1])
+            else:
+                image = Image.open(filepath)
+            encoded_images.append(image)
         try:
-            encoded_images =    self.model.encode([Image.open(filepath) for filepath in self.image_names],
-                                            batch_size=128, convert_to_tensor=True, show_progress_bar=True)
-            self.encoded_images = encoded_images
+            print('len of encoded_images:',len(encoded_images))
+            self.encoded_images = self.model.encode(encoded_images,batch_size=128, convert_to_tensor=True, show_progress_bar=True)
+            endLoadImage = time.time()
+            print('Time load images:',endLoadImage-startLoadImage)
         except Exception as e:
             print(e)
             return e
 
     def load_images_from_db(self, color):
+        startLoadDB = time.time()
         try:
             # Load the image names jpg and jpeg in db
             # fetch image names from db to list by color
-            conn = sqlite3.connect('test.db')
+            conn = sqlite3.connect('test1.db')
             cursor = conn.cursor()
             
             # Create the SQL query using the IN operator and placeholders
             sql = f"SELECT image_url FROM Artworks WHERE artwork_id IN (SELECT artwork_id FROM ArtworkColors WHERE color_name = ?)"
             cursor.execute(sql, (color,))
-
-            # Fetch the results as a list of image URLs
-            image_urls = [f'./imgsearch/{row[0]}' for row in cursor.fetchall()]
-            print(image_urls)
-            self.image_names = image_urls
+            if cursor.fetchone() is None:
+                print('No images found')
+                return
+            image_names = [] 
+            # Fetch all the rows in a list of lists.
+            for row in cursor.fetchall():
+                if row[0].startswith('http'):
+                    image_names.append(row[0])
+                else:
+                    image_names.append('./imgsearch/' + row[0])
+            self.set_image_names(image_names)  # No need to assign this to a variable
+            print('load image_names success')
         except sqlite3.Error as e:
             print("Error fetching image URLs from the database:", str(e))
         finally:
             # Close the cursor and the database connection
             cursor.close()
             conn.close()
+        endLoadDB = time.time()
+        print('Time load image_names from db:',endLoadDB-startLoadDB)
 
     def find_most_similar_images(self, target_image):
         try:
@@ -108,7 +130,10 @@ class ImageSearcher:
                 most_similar_image_path, score = self.find_most_similar_images(self.target)
                 if most_similar_image_path:  # Check if it has a value
                     for i in range(min(len(most_similar_image_path), 3)):
-                        response.append({'most_similar_image_path': most_similar_image_path[i], 'score': score[i]})
+                        if most_similar_image_path[i].startswith('http'):
+                            response.append({'most_similar_image_path': most_similar_image_path[i].split('/')[-1], 'score': score[i]})
+                        else:
+                            response.append({'most_similar_image_path': most_similar_image_path[i], 'score': score[i]})
                         # print name and score
                         print('[ Most similar image path:', most_similar_image_path[i], 'Score:', score[i], ']')
                     return response
