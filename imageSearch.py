@@ -103,7 +103,18 @@ class ImageSearcher:
             most_similar_image_paths = [self.image_names[int(image['corpus_id'])] for image in similar_images]
             scores = [image['score'] for image in similar_images]
 
-            return most_similar_image_paths, scores
+            # get data from db by use image_names 
+            # fetch image names from db to list by color
+            conn = sqlite3.connect('test1.db')
+            cursor = conn.cursor()
+            artworks = []
+            for image_path in most_similar_image_paths:
+                sql = f"SELECT * FROM Artworks WHERE image_url = ?"
+                cursor.execute(sql, (image_path,))
+                row = cursor.fetchone()
+                artworks.append({'artwork_id':row[0],'artwork_name':row[1],'artist_name':row[2],'artwork_type':row[3],'artwork_size':row[4],'artwork_technique':row[5],'exhibition_name':row[6],'award_name':row[7],'license':row[8],'concept':row[9],'detail':row[10],'image_url':row[11],'url':row[12],'score':scores[most_similar_image_paths.index(image_path)]})
+            return artworks
+
         except Exception as e:
             print(e)
             return e
@@ -119,32 +130,20 @@ class ImageSearcher:
         try:
             print('target :',self.target)
             self.set_list_color_target()
-
-            response = []
             colors = self.list_color_target
-            most_similar_image_path = []  # Initialize the variable here
-
             for color in colors:
                 self.load_images_from_db(color)
                 self.load_images()
-                most_similar_image_path, score = self.find_most_similar_images(self.target)
-                if most_similar_image_path:  # Check if it has a value
-                    for i in range(min(len(most_similar_image_path), 3)):
-                        if most_similar_image_path[i].startswith('http'):
-                            response.append({'most_similar_image_path': most_similar_image_path[i].split('/')[-1], 'score': score[i]})
-                        else:
-                            response.append({'most_similar_image_path': most_similar_image_path[i], 'score': score[i]})
-                        # print name and score
-                        print('[ Most similar image path:', most_similar_image_path[i], 'Score:', score[i], ']')
-                    return response
+                artworks = self.find_most_similar_images(self.target)
+                if artworks is not None:
+                    return artworks
                 else:
-                    response.append({'most_similar_image_path': 'No similar image found', 'score': 0.0})
-                    return response
+                    return 'No images found'
         except Exception as e:
             # Handle exceptions and return an error message
             error_message = {'error': str(e)}
             json_error = json.dumps(error_message)
-            print(json_error)
+            print('Error:', json_error)
             return json_error
 
 

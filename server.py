@@ -92,6 +92,22 @@ async def webhook(request: Request):
                 else:
                     print("Reply sending failed. Error:", result)
                 return {'message': 'success'}
+            
+            elif message == 'c':
+                try:
+                    # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
+                    reply_token = body['events'][0]['replyToken']
+                    caraousel = ImgSearchBotLine.create_carousel()
+                    x = BotLine.push_flex(user_id, caraousel)
+                    if x == 'Success':
+                        print("Reply sent successfully.")
+                    else:
+                        print("Reply sending failed. Error:", x)
+                except Exception as e:
+                    print(e)
+                    return {'message': 'error'}
+
+                return {'message': 'success'}
 
         # if it's a image and map find if user_id in users_data and phase is 'Waiting for image'
         elif body['events'][0]['message']['type'] == 'image' and len(list(filter(lambda x: x['user_id'] == body['events'][0]['source']['userId'] and x['Phase'] == 'Waiting for image', users_data))) > 0:
@@ -116,21 +132,31 @@ async def webhook(request: Request):
             # in format [{'most_similar_image_path': most_similar_image_path, 'score': score}, ...]
             # most_similar_image_path is path of image
             # score is score of image
-            # get image from response and send to user
-            for i in range(len(response)):
-                # get image from response
-                image_path = response[i]['most_similar_image_path']
-                # image_name = image_path.split('/')[-1]
-                image_name = image_path
-                print('image_name: ', image_name)
-                # send image to user
-                if image_name.startswith('http'):
-                    image_pathUrl = image_name
-                else:
-                    image_pathUrl = f' https://pn6gs89h-8080.asse.devtunnels.ms/imgsearch/{image_name}'
-                BotLine.push_image(user_id, image_pathUrl)
-                print('Send Image Success')
-
+            # get image from response and send to user  
+            flex_data = []
+            for data in response:
+                flex_data.append({'artwork_id': data['artwork_id'],
+                                'artwork_name': data['artwork_name'],
+                                'artist_name': data['artist_name'],
+                                'artwork_type': data['artwork_type'],
+                                'artwork_size': data['artwork_size'],
+                                'artwork_technique': data['artwork_technique'],
+                                'exhibition_name': data['exhibition_name'],
+                                'award_name': data['award_name'],
+                                'license': data['license'],
+                                'concept': data['concept'],
+                                'detail': data['detail'],
+                                'image_url': data['image_url'],
+                                'url': data['url'],
+                                'score': data['score']})
+            # create carousel
+            caraousel = ImgSearchBotLine.create_carousel(flex_data)
+            # send carousel to user
+            x = BotLine.push_flex(user_id, caraousel)
+            if x == 'Success':
+                print("Reply sent successfully.")
+            else:
+                print("Reply sending failed. Error:", x)
             totaltime = time.time() - starttime
             print('Total Time:', totaltime)
             # change phase to 'Image sent'
@@ -164,19 +190,7 @@ async def handle_user(user_id: int):
 async def handle_image(image_name: str):
     # Show the image.
     return FileResponse(f'./imgsearch/{image_name}')
-
-@app.get('//imgsearch/{image_name}')
-async def handle_image(image_name: str):
-    # Show the image.
-    return FileResponse(f'./imgsearch/{image_name}')
-
-# Define a route to handle image requests.
-@app.get('/{image_name}')
-async def handle_image_target(image_name: str):
-    # Show the image.
-    return FileResponse(f'./{image_name}')
     
-
 # Start the FastAPI server.
 if __name__ == '__main__':
     # Suppress warning messages
