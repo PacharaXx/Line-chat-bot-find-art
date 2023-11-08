@@ -58,35 +58,37 @@ class ImageSearcher:
 
     def load_images_from_db(self, color):
         startLoadDB = time.time()
+
         try:
-            # Load the image names jpg and jpeg in db
-            # fetch image names from db to list by color
+            # Load image names from the database based on the specified color
             conn = sqlite3.connect('test1.db')
             cursor = conn.cursor()
-            
-            # Create the SQL query using the IN operator and placeholders
-            sql = f"SELECT image_url FROM Artworks WHERE artwork_id IN (SELECT artwork_id FROM ArtworkColors WHERE color_name = ?)"
+
+            # Create the SQL query to fetch image URLs by color
+            sql = "SELECT image_url FROM Artworks WHERE artwork_id IN (SELECT artwork_id FROM ArtworkColors WHERE color_name = ?)"
             cursor.execute(sql, (color,))
-            if cursor.fetchone() is None:
-                print('No images found')
+            result = cursor.fetchall()
+
+            if not result:
+                print('No images found for the specified color')
                 return
-            image_names = [] 
-            # Fetch all the rows in a list of lists.
-            for row in cursor.fetchall():
-                if row[0].startswith('http'):
-                    image_names.append(row[0])
-                else:
-                    image_names.append('./imgsearch/' + row[0])
-            self.set_image_names(image_names)  # No need to assign this to a variable
-            print('load image_names success')
+
+            # Extract image URLs from the result set
+            image_names = [row[0] for row in result]
+
+            # Set image_names attribute in your class
+            self.set_image_names(image_names)
+
+            print('Loaded image URLs from the database successfully')
         except sqlite3.Error as e:
             print("Error fetching image URLs from the database:", str(e))
         finally:
             # Close the cursor and the database connection
             cursor.close()
             conn.close()
+
         endLoadDB = time.time()
-        print('Time load image_names from db:',endLoadDB-startLoadDB)
+        print('Time load image_names from db:', endLoadDB - startLoadDB)
 
     def find_most_similar_images(self, target_image):
         try:

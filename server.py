@@ -13,6 +13,7 @@ import time
 import warnings
 from linebot import LineBotSdkDeprecatedIn30
 import io
+from fastapi import BackgroundTasks
 
 # Load .env file
 load_dotenv('./.env')
@@ -32,27 +33,22 @@ webhook_handler = WebhookHandler(chanel_secret)
 users_data = []
 # users_data = [{'user_id': 1, 'Phase': 'Waiting for image'}, {'user_id': 2, 'Phase': 'Waiting for image'}]
 
+# Suppress warning messages
+warnings.filterwarnings("ignore", category=LineBotSdkDeprecatedIn30)
+
+image_searcher = ImageSearcher()
+image_searcher.set_model('clip-ViT-B-32')
+logging.info('set model success')
+image_searcher.load_model()
+logging.info('load model success')
+BotLine = ImgSearchBotLine(token, chanel_secret)
+
 
 @app.get('/')
 async def index():
     return {'message': 'Hello, World!'}
 
-# Define a route to handle webhook requests
-@app.post("/webhook")
-async def webhook(request: Request):
-    # Parse the webhook event
-    body = await request.json()
-    # Get the X-Line-Signature header value
-    signature = request.headers['X-Line-Signature']
-    # Handle webhook body test
-    # try:
-    #     webhook_handler.handle(body, signature)
-    # except Exception as e:
-    #     print(e)
-    #     return {'message': 'error'}
-    # return {'message': 'success'}
-
-    
+async def process(body):
     global users_data
     events = body['events']
     # date and time in format Day month year,HH:MM:SS
@@ -108,8 +104,7 @@ async def webhook(request: Request):
                     return {'message': 'error'}
 
                 return {'message': 'success'}
-
-        # if it's a image and map find if user_id in users_data and phase is 'Waiting for image'
+            
         elif body['events'][0]['message']['type'] == 'image' and len(list(filter(lambda x: x['user_id'] == body['events'][0]['source']['userId'] and x['Phase'] == 'Waiting for image', users_data))) > 0:
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
@@ -135,6 +130,7 @@ async def webhook(request: Request):
             # get image from response and send to user  
             flex_data = []
             for data in response:
+                print(f'Artwork ID: {data["artwork_id"]} Artwork Name: {data["artwork_name"]} Score: {data["score"]}')
                 flex_data.append({'artwork_id': data['artwork_id'],
                                 'artwork_name': data['artwork_name'],
                                 'artist_name': data['artist_name'],
@@ -177,6 +173,24 @@ async def webhook(request: Request):
         return {'message': 'error'}
     return {'message': 'success'}
 
+# Define a route to handle webhook requests
+@app.post("/webhook")
+async def webhook(request: Request, background_tasks: BackgroundTasks):
+    # Parse the webhook event
+    body = await request.json()
+    # Get the X-Line-Signature header value
+    signature = request.headers['X-Line-Signature']
+    # Handle webhook body test
+    # try:
+    #     webhook_handler.handle(body, signature)
+    # except Exception as e:
+    #     print(e)
+    #     return {'message': 'error'}
+    # return {'message': 'success'}
+    background_tasks.add_task(process, body)
+    return {"message": "Notification sent in the background"}
+    # processing = await process(body)
+    # return processing
 
 # Define a route to handle user requests.
 @app.post('/user/{user_id}')
@@ -193,14 +207,15 @@ async def handle_image(image_name: str):
     
 # Start the FastAPI server.
 if __name__ == '__main__':
-    # Suppress warning messages
-    warnings.filterwarnings("ignore", category=LineBotSdkDeprecatedIn30)
+    # # Suppress warning messages
+    # warnings.filterwarnings("ignore", category=LineBotSdkDeprecatedIn30)
 
-    image_searcher = ImageSearcher()
-    image_searcher.set_model('clip-ViT-B-32')
-    logging.info('set model success')
-    image_searcher.load_model()
-    logging.info('load model success')
+    # image_searcher = ImageSearcher()
+    # image_searcher.set_model('clip-ViT-B-32')
+    # logging.info('set model success')
+    # image_searcher.load_model()
+    # logging.info('load model success')
+    # BotLine = ImgSearchBotLine(token, chanel_secret)
 
     # # Load the image names jpg and jpeg
     # image_names = list(glob.glob('./imgsearch/*.jpg') + glob.glob('./imgsearch/*.jpeg') + glob.glob('./imgsearch/*.png'))
@@ -212,10 +227,11 @@ if __name__ == '__main__':
     # image_searcher.load_images()
     # logging.info('load images success')
 
-    BotLine = ImgSearchBotLine(token, chanel_secret)
+    # Create a new ImgSearchBotLine object
 
     try:
-        uvicorn.run(app, host='localhost', port=8080)
+        uvicorn.run('server:app', host='localhost', port=8080, reload=True)
     except Exception as e:
         print(e)
         exit(0)
+
