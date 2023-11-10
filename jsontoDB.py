@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from imageSearch import ImageSearcher
 
 def jsontoDB():
     # get data from json file
@@ -23,7 +24,6 @@ def jsontoDB():
     #     "Image": "http://www.resource.lib.su.ac.th/awardsu/artimages/0000251.jpg",
     #     "URL": "http://www.resource.lib.su.ac.th/awardsu/web/artdetail?item_id=251"
     # },
-
     for art in data:
         try:
             # insert data into table Artworks

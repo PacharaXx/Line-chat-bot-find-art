@@ -38,6 +38,18 @@ cursor.execute(
 """
 )
 
+# สร้างตาราง ArtworkEncodeds
+cursor.execute(
+    """
+    CREATE TABLE ArtworkEncodeds (
+        artwork_encoded_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+        artwork_id INT,
+        encoded BLOB,
+        FOREIGN KEY (artwork_id) REFERENCES Artworks(artwork_id)
+    );
+"""
+)
+
 # สร้างตาราง Colors
 cursor.execute(
     """

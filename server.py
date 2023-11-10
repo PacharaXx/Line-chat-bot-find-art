@@ -109,6 +109,8 @@ async def process(body):
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
+
+            starttime = time.time()
             
             # send to crop in ImgArgumentation
             imgArgumentation = ImageProcessor()
@@ -120,8 +122,6 @@ async def process(body):
             except Exception as e:
                 print(e)
                 return {'message': 'error'}
-
-            starttime = time.time()
             response = image_searcher.run_test()
             # response is json
             # in format [{'most_similar_image_path': most_similar_image_path, 'score': score}, ...]
@@ -153,8 +153,6 @@ async def process(body):
                 print("Reply sent successfully.")
             else:
                 print("Reply sending failed. Error:", x)
-            totaltime = time.time() - starttime
-            print('Total Time:', totaltime)
             # change phase to 'Image sent'
             users_data[users_data.index({'user_id': user_id, 'Phase': 'Waiting for image'})]['Phase'] = 'Image sent'
             # remove user_id and phase in users_data
@@ -163,6 +161,8 @@ async def process(body):
             # print users_data
             print('Users Data:', users_data)
             print(log_message)
+            totaltime = time.time() - starttime
+            print('Total Time:', totaltime)
             return {'message': 'success'}
         else:
             print('else')
