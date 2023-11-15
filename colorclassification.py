@@ -7,6 +7,7 @@ import json
 import time
 from PIL import Image
 import requests
+from sklearn.cluster import KMeans
 class Point:
     def __init__(self, coords, n, ct):
         self.coords = coords
@@ -64,9 +65,6 @@ class ColorQuantizer:
     def rtoh(self, rgb):
         return '#%s' % ''.join(('%02x' % p for p in rgb))
 
-    def euclidean(self, p1, p2):
-        return sqrt(sum([(p1.coords[i] - p2.coords[i]) ** 2 for i in range(p1.n)]))
-
     def calculate_center(self, points, n):
         # start_time = time.time()
         vals = [0.0 for i in range(n)]
@@ -81,44 +79,47 @@ class ColorQuantizer:
 
     def kmeans(self, points, k, min_diff):
         self.start_time = time.time()
-        random.seed(0)
-        clusters = [random.choice(points) for _ in range(k)]
 
-        while 1:
-            plists = [[] for _ in range(k)]
+        # Extract RGB values from points
+        data = np.array([p.coords for p in points])
 
-            for p in points:
-                smallest_distance = float('Inf')
-                for i, cluster in enumerate(clusters):
-                    distance = self.euclidean(p, cluster)
-                    if distance < smallest_distance:
-                        smallest_distance = distance
-                        idx = i
-                plists[idx].append(p)
+        # Use scikit-learn's KMeans
+        kmeans = KMeans(n_clusters=k, random_state=0)
+        labels = kmeans.fit_predict(data)
+        centroids = kmeans.cluster_centers_
 
-            diff = 0
-            for i in range(k):
-                old_center = clusters[i]
-                new_center = self.calculate_center(plists[i], old_center.n)
-                clusters[i] = new_center
-                diff = max(diff, self.euclidean(old_center, new_center))
+        clusters = [Point(centroid, len(centroid), 1) for centroid in centroids]
 
-            if diff < min_diff:
-                break
         self.end_time = time.time()
         print(f"Time taken to KMEANS: {self.end_time - self.start_time:.2f} seconds")
         return clusters
     
     def closest(self, colors, color):
-        # start_time = time.time()
+        # Convert to numpy arrays
         colors = np.array(colors)
         color = np.array(color)
+
+        # Ensure that color has the same number of dimensions as colors
+        if color.ndim == 1:
+            color = color[:3]  # Take only the first three elements if there are more
+
+        # Ensure that color has the correct shape
+        if color.shape != (1, 3):
+            color = color.reshape(1, -1)
+
+        # Calculate Euclidean distances
         distances = np.sqrt(np.sum((colors - color) ** 2, axis=1))
+
+        # Find the index of the smallest distance
         index_of_smallest = np.argmin(distances)
+
+        # Get the closest color
         smallest_distance = colors[index_of_smallest]
-        # end_time = time.time()
-        # print(f"Time taken to CLOSEST: {end_time - start_time:.2f} seconds")
+
         return smallest_distance, index_of_smallest
+
+
+
 
     def get_color_name(self, rgb):
         # start_time = time.time()
