@@ -17,6 +17,10 @@ import io
 from fastapi import BackgroundTasks
 import json
 import asyncio
+import multiprocessing
+from pathlib import Path
+# เพิ่มการใช้ caching เพื่อลดการเรียกใช้งานไฟล์ที่มีการเข้าถึงซ้ำซ้อน
+from fastapi.staticfiles import StaticFiles
 
 # Load .env file
 load_dotenv('./.env')
@@ -26,6 +30,9 @@ chanel_secret: str = os.getenv('CHANNEL_SECRET')
 
 # Create a new FastAPI instance.
 app = FastAPI()
+
+# กำหนด path สำหรับเก็บไฟล์และเปิดใช้ caching
+app.mount("/imgsearch", StaticFiles(directory="./imgsearch", html=False), name="imgsearch")
 
 # Create a new LineBotApi object
 line_bot_api = LineBotApi(token)
@@ -54,24 +61,27 @@ class UserDataManager:
         self.load_users_data()
 
     def load_users_data(self):
-        with open('./users_data.json', 'r') as file:
-            try:
+        try:
+            with open('./users_data.json', 'r', encoding='utf-8') as file:
                 self.users_data = json.load(file)
-            except:
-                self.users_data = {}
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.users_data = {}
 
     async def update_user_phase(self, user_id, phase):
-        async with self.get_lock(user_id):
-            if user_id not in self.users_data:
-                self.users_data[user_id] = {'user_id': user_id, 'Phase': phase}
-            else:
-                if phase == 'Image Sent':
-                    # remove user from users_data
-                    del self.users_data[user_id]
-                self.users_data[user_id]['Phase'] = phase
+        async with await self.get_lock(user_id):
+            self.users_data[user_id] = {'Phase': phase}
+            await self.save_users_data()
 
-        with open('./users_data.json', 'w') as file:
-            json.dump(list(self.users_data.values()), file)
+    async def save_users_data(self):
+        # Write user data to file asynchronously
+        with open('./users_data.json', 'w', encoding='utf-8') as file:
+            json.dump(self.users_data, file, ensure_ascii=False, indent=4)
+
+    async def remove_user_data(self, user_id):
+        async with await self.get_lock(user_id):
+            if user_id in self.users_data:
+                del self.users_data[user_id]
+                await self.save_users_data()
 
     async def get_lock(self, user_id):
         if user_id not in self.locks:
@@ -118,8 +128,8 @@ async def process(body):
                 # Check the result
                 if result == 'Success':
                     print("Reply sent successfully.")
-                    # update user phase
-                    user_data_manager.update_user_phase(user_id, 'Waiting for image')
+                    user_data_manager.users_data[user_id] = {'Phase': 'Waiting for image'}
+                    await user_data_manager.save_users_data()
                     logging.info(log_message)
                 else:
                     print("Reply sending failed. Error:", result)
@@ -127,6 +137,7 @@ async def process(body):
             
             elif message == 'c':
                 try:
+                    logging.info('Receive message from UserID: ' + user_id + ' Message: ' + message)
                     # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
                     reply_token = body['events'][0]['replyToken']
                     caraousel = ImgSearchBotLine.create_carousel()
@@ -140,12 +151,14 @@ async def process(body):
                     return {'message': 'error'}
 
                 return {'message': 'success'}
-            
+        
+            print(user_data_manager.users_data.get(user_id, {}).get('Phase', 'None'))
         elif body['events'][0]['message']['type'] == 'image' and user_data_manager.users_data.get(user_id, {}).get('Phase', 'None') == 'Waiting for image':
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
 
+            logging.info('Receive image from UserID: ' + user_id + ' ImageID: ' + image_id)
             starttime = time.time()
             
             # send to crop in ImgArgumentation
@@ -190,25 +203,29 @@ async def process(body):
             else:
                 print("Reply sending failed. Error:", x)
             # update user phase
-            user_data_manager.update_user_phase(user_id, 'Image Sent')
+            await user_data_manager.update_user_phase(user_id, 'Waiting for image')
             print('Image sent')
             # ------- for debug -------
             print(log_message)
             logging.info(log_message)
             totaltime = time.time() - starttime
             print('Total Time:', totaltime)
+            # -------------------------
+            # remove user data
+            await user_data_manager.remove_user_data(user_id)
             return {'message': 'success'}
         else:
-            print('else')
+            user_id = body['events'][0]['source']['userId']
+            message_body = (body['events'][0]['message']['text']) if body['events'][0]['message']['type'] == 'text' else 'None'
+            logging.info('Receive message from UserID: ' + user_id + ' Message: ' + message_body)
+            print('No action')
             # return status 200
             return {'message': 'success'}
     except Exception as e:
         print(e)
         return {'message': 'error'}
-    finally:
-        print('finally')
-        # return status 200
-        return {'message': 'success'}
+    # return status 200
+    return {'message': 'success'}
 
 # Define a route to handle webhook requests
 @app.post("/webhook")
@@ -240,12 +257,13 @@ async def handle_user(user_id: int):
 # Define a route to handle image requests.
 @app.get('/imgsearch/{image_name}')
 async def handle_image(image_name: str):
-    image_path = f'./imgsearch/{image_name}'  # กำหนดที่อยู่ของไฟล์ภาพ
-    if os.path.exists(image_path):
+    image_path = Path(f'./imgsearch/{image_name}')  # กำหนดที่อยู่ของไฟล์ภาพ
+    
+    if image_path.is_file():
         return FileResponse(image_path)  # ส่งไฟล์ภาพกลับไปยังผู้ใช้งาน
     else:
         return {"message": "Image not found"}  # ถ้าไม่พบไฟล์ภาพ ส่งข้อความกลับไปยังผู้ใช้งาน
-    
+
 # Start the FastAPI server.
 if __name__ == '__main__':
     # # Suppress warning messages
@@ -270,14 +288,14 @@ if __name__ == '__main__':
 
     # Create a new ImgSearchBotLine object
 
-    num_cpus = os.cpu_count()
-    print(f'Number of CPUs: {num_cpus}')
+
+    num_cpus = multiprocessing.cpu_count()
     try:
-        # uvicorn.run('server:app', host='localhost', port=8080, reload=True, workers=num_cpus)
-        # ------------------ for deploy ------------------
         num_workers = num_cpus - 1 if num_cpus > 1 else 1
-        subprocess.run(["gunicorn", "-w", str(num_workers), "-k", "uvicorn.workers.UvicornWorker", "server:app"])
+        print(f'Number of workers: {num_workers}')
+        uvicorn.run('server:app', host='localhost', port=8080)
+        # subprocess.run(["uvicorn", "server:app", "--host", "localhost", "--port", "8080", "--workers", str(num_workers)])
     except Exception as e:
-        print(e)
+        print('Launch server failed:', e)
         exit(0)
 
