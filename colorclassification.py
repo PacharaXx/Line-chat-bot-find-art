@@ -77,17 +77,19 @@ class ColorQuantizer:
         # print(f"Time taken to CALCENTER: {end_time - start_time:.2f} seconds")
         return Point([(v / plen) for v in vals], n, 1)
 
-    def kmeans(self, points, k, min_diff):
+    def kmeans(self, points, k, min_diff=0):
         self.start_time = time.time()
 
         # Extract RGB values from points
         data = np.array([p.coords for p in points])
+        print('Length of data: ',len(data))
 
         # Use scikit-learn's KMeans
         kmeans = KMeans(n_clusters=k, random_state=0)
         labels = kmeans.fit_predict(data)
         centroids = kmeans.cluster_centers_
-
+        
+        # Initialize centroids, the first 'k' elements in 'points' will be our initial centroids
         clusters = [Point(centroid, len(centroid), 1) for centroid in centroids]
 
         self.end_time = time.time()

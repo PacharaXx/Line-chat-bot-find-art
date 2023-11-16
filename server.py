@@ -1,4 +1,5 @@
 import uvicorn
+import subprocess
 from fastapi import FastAPI, Request
 from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
@@ -14,6 +15,8 @@ import warnings
 from linebot import LineBotSdkDeprecatedIn30
 import io
 from fastapi import BackgroundTasks
+import json
+import asyncio
 
 # Load .env file
 load_dotenv('./.env')
@@ -30,11 +33,12 @@ line_bot_api = LineBotApi(token)
 # Create a new WebhookHandler object
 webhook_handler = WebhookHandler(chanel_secret)
 
-users_data = []
-# users_data = [{'user_id': 1, 'Phase': 'Waiting for image'}, {'user_id': 2, 'Phase': 'Waiting for image'}]
-
 # Suppress warning messages
 warnings.filterwarnings("ignore", category=LineBotSdkDeprecatedIn30)
+
+# logging in json format file
+# [{time: time, level: level, message: message}, ...]
+logging.basicConfig(filename='./log.json', filemode='a', format='%(asctime)s %(levelname)s %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
 
 image_searcher = ImageSearcher()
 image_searcher.set_model('clip-ViT-B-32')
@@ -43,20 +47,52 @@ image_searcher.load_model()
 logging.info('load model success')
 BotLine = ImgSearchBotLine(token, chanel_secret)
 
+class UserDataManager:
+    def __init__(self):
+        self.users_data = {}
+        self.locks = {}
+        self.load_users_data()
+
+    def load_users_data(self):
+        with open('./users_data.json', 'r') as file:
+            try:
+                self.users_data = json.load(file)
+            except:
+                self.users_data = {}
+
+    async def update_user_phase(self, user_id, phase):
+        async with self.get_lock(user_id):
+            if user_id not in self.users_data:
+                self.users_data[user_id] = {'user_id': user_id, 'Phase': phase}
+            else:
+                if phase == 'Image Sent':
+                    # remove user from users_data
+                    del self.users_data[user_id]
+                self.users_data[user_id]['Phase'] = phase
+
+        with open('./users_data.json', 'w') as file:
+            json.dump(list(self.users_data.values()), file)
+
+    async def get_lock(self, user_id):
+        if user_id not in self.locks:
+            self.locks[user_id] = asyncio.Lock()
+        return self.locks[user_id]
 
 @app.get('/')
 async def index():
     return {'message': 'Hello, World!'}
 
+# Create an instance of UserDataManager
+user_data_manager = UserDataManager()
+
 async def process(body):
-    global users_data
+    # Get the event type
     events = body['events']
     # date and time in format Day month year,HH:MM:SS
     current_time = time.strftime("%a %b %d %Y,%H:%M:%S", time.localtime())
     user_id = body['events'][0]['source']['userId']
     message_type = (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'text' else (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'image' else 'None'
     message_body = (body['events'][0]['message']['text']) if body['events'][0]['message']['type'] == 'text' else 'None'
-    matching_users = list(filter(lambda x: x['user_id'] == user_id, users_data))
 
     log_message = (
         f"---------Webhook Event---------\n"
@@ -64,8 +100,7 @@ async def process(body):
         f"UserID: {user_id}\n"
         f"Message Type: {message_type}\n"
         f"Message Text: {message_body}\n"
-        f"Matching Users: {matching_users}\n"
-        f"Phase: {(matching_users[0]['Phase'] if matching_users[0]['Phase'] else 'None') if len(matching_users) > 0 else 'None'}\n"
+        f"Phase: {user_data_manager.users_data.get(user_id, {}).get('Phase', 'None')}\n"
         f"--------------------------------\n"
     )
     
@@ -74,7 +109,7 @@ async def process(body):
         if body['events'][0]['message']['type'] == 'text':
             user_id = body['events'][0]['source']['userId']
             message = body['events'][0]['message']['text']
-
+            logging.info('Receive message from UserID: ' + user_id + ' Message: ' + message)
             if message == 'ค้นหาด้วยภาพ':
                 # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
                 reply_token = body['events'][0]['replyToken']
@@ -82,9 +117,10 @@ async def process(body):
 
                 # Check the result
                 if result == 'Success':
-                    users_data.append({'user_id': user_id, 'Phase': 'Waiting for image'})
                     print("Reply sent successfully.")
-                    print(log_message)
+                    # update user phase
+                    user_data_manager.update_user_phase(user_id, 'Waiting for image')
+                    logging.info(log_message)
                 else:
                     print("Reply sending failed. Error:", result)
                 return {'message': 'success'}
@@ -105,7 +141,7 @@ async def process(body):
 
                 return {'message': 'success'}
             
-        elif body['events'][0]['message']['type'] == 'image' and len(list(filter(lambda x: x['user_id'] == body['events'][0]['source']['userId'] and x['Phase'] == 'Waiting for image', users_data))) > 0:
+        elif body['events'][0]['message']['type'] == 'image' and user_data_manager.users_data.get(user_id, {}).get('Phase', 'None') == 'Waiting for image':
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
             image_content = line_bot_api.get_message_content(image_id)
@@ -153,14 +189,12 @@ async def process(body):
                 print("Reply sent successfully.")
             else:
                 print("Reply sending failed. Error:", x)
-            # change phase to 'Image sent'
-            users_data[users_data.index({'user_id': user_id, 'Phase': 'Waiting for image'})]['Phase'] = 'Image sent'
-            # remove user_id and phase in users_data
-            users_data.remove({'user_id': user_id, 'Phase': 'Image sent'})
+            # update user phase
+            user_data_manager.update_user_phase(user_id, 'Image Sent')
             print('Image sent')
-            # print users_data
-            print('Users Data:', users_data)
+            # ------- for debug -------
             print(log_message)
+            logging.info(log_message)
             totaltime = time.time() - starttime
             print('Total Time:', totaltime)
             return {'message': 'success'}
@@ -171,7 +205,10 @@ async def process(body):
     except Exception as e:
         print(e)
         return {'message': 'error'}
-    return {'message': 'success'}
+    finally:
+        print('finally')
+        # return status 200
+        return {'message': 'success'}
 
 # Define a route to handle webhook requests
 @app.post("/webhook")
@@ -187,6 +224,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     #     print(e)
     #     return {'message': 'error'}
     # return {'message': 'success'}
+    print('Have a new request!!')
     background_tasks.add_task(process, body)
     return {"message": "Notification sent in the background"}
     # processing = await process(body)
@@ -202,8 +240,11 @@ async def handle_user(user_id: int):
 # Define a route to handle image requests.
 @app.get('/imgsearch/{image_name}')
 async def handle_image(image_name: str):
-    # Show the image.
-    return FileResponse(f'./imgsearch/{image_name}')
+    image_path = f'./imgsearch/{image_name}'  # กำหนดที่อยู่ของไฟล์ภาพ
+    if os.path.exists(image_path):
+        return FileResponse(image_path)  # ส่งไฟล์ภาพกลับไปยังผู้ใช้งาน
+    else:
+        return {"message": "Image not found"}  # ถ้าไม่พบไฟล์ภาพ ส่งข้อความกลับไปยังผู้ใช้งาน
     
 # Start the FastAPI server.
 if __name__ == '__main__':
@@ -229,8 +270,13 @@ if __name__ == '__main__':
 
     # Create a new ImgSearchBotLine object
 
+    num_cpus = os.cpu_count()
+    print(f'Number of CPUs: {num_cpus}')
     try:
-        uvicorn.run('server:app', host='localhost', port=8080, reload=True)
+        # uvicorn.run('server:app', host='localhost', port=8080, reload=True, workers=num_cpus)
+        # ------------------ for deploy ------------------
+        num_workers = num_cpus - 1 if num_cpus > 1 else 1
+        subprocess.run(["gunicorn", "-w", str(num_workers), "-k", "uvicorn.workers.UvicornWorker", "server:app"])
     except Exception as e:
         print(e)
         exit(0)
