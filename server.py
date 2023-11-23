@@ -1,6 +1,7 @@
 import uvicorn
 import subprocess
-from fastapi import FastAPI, Request
+import sqlite3
+from fastapi import FastAPI, File, Request
 from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
@@ -21,7 +22,9 @@ import multiprocessing
 from pathlib import Path
 # เพิ่มการใช้ caching เพื่อลดการเรียกใช้งานไฟล์ที่มีการเข้าถึงซ้ำซ้อน
 from fastapi.staticfiles import StaticFiles
-
+from fastapi import Form, UploadFile
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 # Load .env file
 load_dotenv('./.env')
 ip: str = os.getenv('IP')
@@ -30,6 +33,9 @@ chanel_secret: str = os.getenv('CHANNEL_SECRET')
 
 # Create a new FastAPI instance.
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+)
 
 # กำหนด path สำหรับเก็บไฟล์และเปิดใช้ caching
 app.mount("/imgsearch", StaticFiles(directory="./imgsearch", html=False), name="imgsearch")
@@ -263,6 +269,41 @@ async def handle_image(image_name: str):
         return FileResponse(image_path)  # ส่งไฟล์ภาพกลับไปยังผู้ใช้งาน
     else:
         return {"message": "Image not found"}  # ถ้าไม่พบไฟล์ภาพ ส่งข้อความกลับไปยังผู้ใช้งาน
+    
+@app.get('/report')
+async def report():
+    # return web page
+    return FileResponse('./report.html')
+
+@app.post("/submitreport")
+async def submit_report(header: str = Form(...), report: str = Form(...), image: UploadFile = File(...)):
+    try:
+        upload_folder = "./uploaded_images"
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        image_path = os.path.join(upload_folder, image.filename)
+        with open(image_path, "wb") as buffer:
+            buffer.write(image.file.read())
+        
+        conn = sqlite3.connect('report.db')
+        cursor = conn.cursor()
+        cursor.execute('CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, header TEXT, report TEXT, image_filename TEXT)')
+        
+        cursor.execute('INSERT INTO reports (header, report, image_filename) VALUES (?, ?, ?)', (header, report, image.filename))
+        last_inserted_id = cursor.lastrowid
+        
+        new_image_filename = f"{last_inserted_id}.jpg"
+        os.rename(image_path, os.path.join(upload_folder, new_image_filename))
+        
+        cursor.execute('UPDATE reports SET image_filename = ? WHERE id = ?', (new_image_filename, last_inserted_id))
+        conn.commit()
+        conn.close()
+
+        return JSONResponse(content={"message": "Report submitted successfully"})
+    
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": f"Error: {str(e)}"})
+
 
 # Start the FastAPI server.
 if __name__ == '__main__':
@@ -291,8 +332,8 @@ if __name__ == '__main__':
 
     num_cpus = multiprocessing.cpu_count()
     try:
-        num_workers = num_cpus - 1 if num_cpus > 1 else 1
-        print(f'Number of workers: {num_workers}')
+        # num_workers = num_cpus - 1 if num_cpus > 1 else 1
+        # print(f'Number of workers: {num_workers}')
         uvicorn.run('server:app', host='localhost', port=8080)
         # subprocess.run(["uvicorn", "server:app", "--host", "localhost", "--port", "8080", "--workers", str(num_workers)])
     except Exception as e:
