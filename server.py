@@ -1,5 +1,4 @@
 import uvicorn
-import subprocess
 import sqlite3
 from fastapi import FastAPI, File, Request
 from linebot import LineBotApi, WebhookHandler
@@ -171,6 +170,8 @@ async def process(body):
             imgArgumentation = ImageProcessor()
             imgArgumentation.set_img(Image.open(io.BytesIO(image_content.content)))
             image_content = imgArgumentation.preprocess_and_crop_image()
+            endtime = time.time()
+            print('Preprocess and crop image time:', endtime - starttime)
             try:
                 image_searcher.set_target(image_content)
                 print('set target success')
@@ -275,7 +276,7 @@ async def report():
     # return web page
     return FileResponse('./report.html')
 
-@app.post("/submitreport")
+@app.post("/submit_report")
 async def submit_report(header: str = Form(...), report: str = Form(...), image: UploadFile = File(...)):
     try:
         upload_folder = "./uploaded_images"
@@ -334,7 +335,8 @@ if __name__ == '__main__':
     try:
         # num_workers = num_cpus - 1 if num_cpus > 1 else 1
         # print(f'Number of workers: {num_workers}')
-        uvicorn.run('server:app', host='localhost', port=8080)
+        uvicorn.run('server:app', host=ip, port=8080)
+        # uvicorn.run('server:app', host='localhost', port=8080,ssl_keyfile='./key.pem', ssl_certfile='./cert.pem')
         # subprocess.run(["uvicorn", "server:app", "--host", "localhost", "--port", "8080", "--workers", str(num_workers)])
     except Exception as e:
         print('Launch server failed:', e)
