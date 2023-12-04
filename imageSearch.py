@@ -141,7 +141,6 @@ class ImageSearcher:
             self.set_image_names(image_names)
 
             print('Loaded image URLs from the database successfully')
-            print(image_names)
         except sqlite3.Error as e:
             print("Error fetching image URLs from the database:", str(e))
         finally:
@@ -225,12 +224,12 @@ class ImageSearcher:
             print(e)
             return e
         
-# if __name__ == '__main__':
-#     # send encoded to db
-#     im = ImageSearcher()
-#     im.set_model('clip-ViT-B-32')
-#     im.load_model()
-#     im.encoded_to_DB()
+if __name__ == '__main__':
+    # send encoded to db
+    im = ImageSearcher()
+    im.set_model('clip-ViT-B-32')
+    im.load_model()
+    im.encoded_to_DB()
 
 
 

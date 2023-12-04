@@ -7,7 +7,9 @@ class ImageProcessor:
         self.img = None
 
     def set_img(self, img):
-        self.img = np.array(img)
+        # resize image before process
+        img.thumbnail((512, 512))
+        self.img = img
 
     def preprocess_and_crop_image(self):
         # Convert the input image to grayscale
