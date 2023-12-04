@@ -1,30 +1,45 @@
 import cv2
 import numpy as np
 from PIL import Image
+import time
 
 class ImageProcessor:
     def __init__(self):
         self.img = None
 
     def set_img(self, img):
-        # resize image before process
-        img.thumbnail((512, 512))
+        starttime = time.time()
         self.img = np.array(img)
+        endtime = time.time()
+        print(f"Time taken to SET_IMG: {endtime - starttime:.2f} seconds")
 
     def preprocess_and_crop_image(self):
+        starttime = time.time()
         # Convert the input image to grayscale
         grayscale_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        endtime = time.time()
+        print(f"Time taken to CONVERT_TO_GRAYSCALE: {endtime - starttime:.2f} seconds")
 
         # Remove noise
+        starttime = time.time()
         blur = cv2.GaussianBlur(grayscale_img, (5, 5), 200)
+        endtime = time.time()
+        print(f"Time taken to REMOVE_NOISE: {endtime - starttime:.2f} seconds")
 
         # Perform Canny edge detection
+        starttime = time.time()
         edges = cv2.Canny(blur, 100, 100)
+        endtime = time.time()
+        print(f"Time taken to CANNY_EDGE_DETECTION: {endtime - starttime:.2f} seconds")
 
         # Find contours in the image as groups
+        starttime = time.time()
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        endtime = time.time()
+        print(f"Time taken to FIND_CONTOURS: {endtime - starttime:.2f} seconds")
 
         # Initialize variables to store minimum and maximum coordinates
+        starttime = time.time()
         min_x, min_y = float('inf'), float('inf')
         max_x = max_y = -float('inf')
 
@@ -37,14 +52,25 @@ class ImageProcessor:
             min_y = min(min_y, y)
             max_x = max(max_x, x + w)
             max_y = max(max_y, y + h)
+        endtime = time.time()
+        print(f"Time taken to FIND_BOUNDING_BOX: {endtime - starttime:.2f} seconds")
 
         # Crop the image
+        starttime = time.time()
         cropped_img = self.img[min_y:max_y, min_x:max_x]
+        endtime = time.time()
+        print(f"Time taken to CROP_IMAGE: {endtime - starttime:.2f} seconds")
 
         # Convert the processed image to a PIL Image to ensure it's in the expected format
+        starttime = time.time()
         result_image = Image.fromarray(cropped_img)
+        endtime = time.time()
+        print(f"Time taken to CONVERT_TO_PIL_IMAGE: {endtime - starttime:.2f} seconds")
         # change to RGB
+        starttime = time.time()
         result_image = result_image.convert('RGB')
+        endtime = time.time()
+        print(f"Time taken to CONVERT_TO_RGB: {endtime - starttime:.2f} seconds")
         return result_image
 
 
