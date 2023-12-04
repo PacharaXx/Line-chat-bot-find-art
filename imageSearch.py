@@ -153,7 +153,7 @@ class ImageSearcher:
 
     def find_most_similar_images(self, target_image):
         try:
-            encoded_target_image = self.model.encode(target_image, convert_to_tensor=True)
+            encoded_target_image = self.model.encode(target_image, convert_to_tensor=True, show_progress_bar=True)
 
             # Find similar images to the target image
             NUM_SIMILAR_IMAGES = 3

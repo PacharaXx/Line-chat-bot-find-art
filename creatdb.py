@@ -43,7 +43,7 @@ cursor.execute(
     """
     CREATE TABLE ArtworkEncodeds (
         artwork_encoded_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-        artwork_id INT,
+        artwork_id INT UNIQUE,
         encoded BLOB,
         FOREIGN KEY (artwork_id) REFERENCES Artworks(artwork_id)
     );

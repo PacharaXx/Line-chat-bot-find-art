@@ -9,11 +9,12 @@ from dotenv import load_dotenv
 import os
 
 class ImgSearchBotLine:
-    def __init__(self, channel_access_token, channel_secret):
+    def __init__(self, channel_access_token, channel_secret, ip_url):
         # Suppress warning messages
         warnings.filterwarnings("ignore", category=LineBotSdkDeprecatedIn30)
         self.line_bot_api = LineBotApi(channel_access_token)
         self.handler = WebhookHandler(channel_secret)
+        self.ip = ip_url+'imgsearch/'
 
     def reply(self, reply_token, message):
         try:
@@ -48,7 +49,7 @@ class ImgSearchBotLine:
         except Exception as e:
             return e
 
-    def create_carousel(response):
+    def create_carousel(self, response):
         try:
             contents = []
             carousel = {"type": "carousel", "contents": contents}
@@ -57,10 +58,8 @@ class ImgSearchBotLine:
                     url = data["image_url"].split("/")[-1]
                 else:
                     url = data["image_url"]
-                # get env
-                load_dotenv('./.env')
-                ip = os.getenv("IP_URL")+'imgsearch/'
-                url = ip + url
+                url = self.ip + url
+                print(url)
                 bubble_content = {
                     "type": "bubble",
                     "hero": {

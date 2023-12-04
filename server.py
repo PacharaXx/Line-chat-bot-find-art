@@ -5,7 +5,8 @@ from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
 from detection import ImageProcessor
-from PIL import Image
+import cv2
+import numpy as np
 from dotenv import load_dotenv
 import os
 import logging
@@ -29,6 +30,10 @@ load_dotenv('./.env')
 ip: str = os.getenv('IP')
 token: str = os.getenv('TOKEN')
 chanel_secret: str = os.getenv('CHANNEL_SECRET')
+ip_url: str = os.getenv('IP_URL')
+print('IP:', ip)
+print('IP_URL:', ip_url)
+
 
 # Create a new FastAPI instance.
 app = FastAPI()
@@ -57,7 +62,7 @@ image_searcher.set_model('clip-ViT-B-32')
 logging.info('set model success')
 image_searcher.load_model()
 logging.info('load model success')
-BotLine = ImgSearchBotLine(token, chanel_secret)
+BotLine = ImgSearchBotLine(token, chanel_secret, ip_url)
 
 class UserDataManager:
     def __init__(self):
@@ -139,23 +144,6 @@ async def process(body):
                 else:
                     print("Reply sending failed. Error:", result)
                 return {'message': 'success'}
-            
-            elif message == 'c':
-                try:
-                    logging.info('Receive message from UserID: ' + user_id + ' Message: ' + message)
-                    # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
-                    reply_token = body['events'][0]['replyToken']
-                    caraousel = ImgSearchBotLine.create_carousel()
-                    x = BotLine.push_flex(user_id, caraousel)
-                    if x == 'Success':
-                        print("Reply sent successfully.")
-                    else:
-                        print("Reply sending failed. Error:", x)
-                except Exception as e:
-                    print(e)
-                    return {'message': 'error'}
-
-                return {'message': 'success'}
         
             print(user_data_manager.users_data.get(user_id, {}).get('Phase', 'None'))
         elif body['events'][0]['message']['type'] == 'image' and user_data_manager.users_data.get(user_id, {}).get('Phase', 'None') == 'Waiting for image':
@@ -168,7 +156,15 @@ async def process(body):
             
             # send to crop in ImgArgumentation
             imgArgumentation = ImageProcessor()
-            imgArgumentation.set_img(Image.open(io.BytesIO(image_content.content)))
+            # Get the image content
+            image_bytes = image_content.content
+            # Convert the image data to a format that OpenCV can read
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            img_rgb = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
+            imgArgumentation.set_img(img_rgb)
+            endtime = time.time()
+            print('Set image time and convert to RGB:', endtime - starttime)
             image_content = imgArgumentation.preprocess_and_crop_image()
             endtime = time.time()
             print('Preprocess and crop image time:', endtime - starttime)
@@ -202,7 +198,7 @@ async def process(body):
                                 'url': data['url'],
                                 'score': data['score']})
             # create carousel
-            caraousel = ImgSearchBotLine.create_carousel(flex_data)
+            caraousel = BotLine.create_carousel(flex_data)
             # send carousel to user
             x = BotLine.push_flex(user_id, caraousel)
             if x == 'Success':
