@@ -17,7 +17,7 @@ def getimgurlfromjson(jsonurl):
     #     "URL": "http://www.resource.lib.su.ac.th/awardsu/web/artdetail?item_id=251"
     # },
     imgurllist = []
-    with open(jsonurl, 'r') as f:
+    with open(jsonurl, 'r',encoding='utf-8') as f:
         data = json.load(f)
         for i in data:
             imgurllist.append(i['Image'])
@@ -26,7 +26,7 @@ def getimgurlfromjson(jsonurl):
 
 # ทดสอบโปรแกรม
 # load json file from local
-jsonurl = './data.json'
+jsonurl = './data2.json'
 imgurllist = getimgurlfromjson(jsonurl)
 # save image from url into folder 'imgsearch' and file name is last part of url
 for i in imgurllist:
