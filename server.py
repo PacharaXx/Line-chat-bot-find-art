@@ -206,6 +206,8 @@ async def process(body):
                                 'image_url': data['image_url'],
                                 'url': data['url'],
                                 'score': data['score']})
+                
+                print(flex_data)
             # create carousel
             caraousel = BotLine.create_carousel(flex_data)
             # send carousel to user
@@ -214,7 +216,7 @@ async def process(body):
                 print("Reply sent successfully.")
             else:
                 print("Reply sending failed. Error:", x)
-                BotLine.push(user_id, 'ระบบขัดข้อง : ',x,' กรุณารายงานปัญหาเพื่อแก้ไขให้เร็วที่สุด')
+                BotLine.push(user_id, f'ระบบขัดข้อง : {x} กรุณารายงานปัญหาเพื่อแก้ไขให้เร็วที่สุด')
             # update user phase
             await user_data_manager.update_user_phase(user_id, 'Waiting for image')
             print('Image sent')
