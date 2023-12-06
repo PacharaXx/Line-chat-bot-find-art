@@ -124,8 +124,10 @@ class ImgSearchBotLine:
                     lenOfBody = len(bubble_content["body"]["contents"])
                     if lenOfBody == 0:
                         weight = 'bold'
+                        size = 'md'
                     else:
                         weight = 'regular'
+                        size = 'sm'
                     if isinstance(data[key], str) and key == 'artwork_name' and data[key] != 'NONE':
                         # if len(data[key]) > 15:
                         #     data[key] = data[key][:15] + '...'
@@ -138,7 +140,7 @@ class ImgSearchBotLine:
                                 "type": "text",
                                 "text": data["artwork_name"],
                                 "weight": weight,
-                                "size": "lg",
+                                "size": size,
                                 "flex": 1,
                                 "wrap": True,
                                 "contents": []
@@ -158,7 +160,8 @@ class ImgSearchBotLine:
                                     "type": "text",
                                     "text": data["artist_name"],
                                     "weight": weight,
-                                    "size": "md",
+                                    "size": size,
+                                    "style": "italic",
                                     "flex": 0,
                                     "wrap": True,
                                     "contents": []
@@ -174,7 +177,8 @@ class ImgSearchBotLine:
                                     "type": "text",
                                     "text": data["license"],
                                     "weight": weight,
-                                    "size": "md",
+                                    "size": size,
+                                    "style": "italic",
                                     "flex": 0,
                                     "wrap": True,
                                     "contents": []
@@ -193,7 +197,7 @@ class ImgSearchBotLine:
                                 "type": "text",
                                 "text": data["exhibition_name"],
                                 "weight": weight,
-                                "size": "md",
+                                "size": 'md',
                                 "flex": 0,
                                 "wrap": True,
                                 "contents": []
