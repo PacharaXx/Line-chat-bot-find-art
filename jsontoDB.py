@@ -1,10 +1,9 @@
 import json
 import sqlite3
-from imageSearch import ImageSearcher
 
 def jsontoDB():
     # get data from json file
-    with open('data.json', 'r') as f:
+    with open('data.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
     # connect to database sqlite3
     db = sqlite3.connect('test1.db')
