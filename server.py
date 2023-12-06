@@ -1,11 +1,12 @@
 import uvicorn
 import sqlite3
-from fastapi import FastAPI, File, Request
+from fastapi import FastAPI, File, HTTPException, Request
 from linebot import LineBotApi, WebhookHandler
 from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
 from detection import ImageProcessor
 import cv2
+from io import BytesIO
 import numpy as np
 from dotenv import load_dotenv
 import os
@@ -21,11 +22,12 @@ import asyncio
 import multiprocessing
 from pathlib import Path
 from PIL import Image
-# เพิ่มการใช้ caching เพื่อลดการเรียกใช้งานไฟล์ที่มีการเข้าถึงซ้ำซ้อน
+Image.MAX_IMAGE_PIXELS = None
 from fastapi.staticfiles import StaticFiles
 from fastapi import Form, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from cachetools import LRUCache
 # Load .env file
 load_dotenv('./.env')
 ip: str = os.getenv('IP')
@@ -38,6 +40,7 @@ print('IP_URL:', ip_url)
 
 # Create a new FastAPI instance.
 app = FastAPI()
+caches = {"default": LRUCache(maxsize=100)}  # Cache initialization
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
@@ -276,29 +279,46 @@ async def assets(filename: str):
     return FileResponse('./assets/'+filename)
 
 
-# Define a route to handle image requests.
 @app.get('/imgsearch/{image_name}')
-async def handle_image(image_name: str):
-    image_path = Path(f'./imgsearch/{image_name}')  # กำหนดที่อยู่ของไฟล์ภาพ
-    if image_path.is_file():
-        # Load the image using PIL
-        img = Image.open(image_path)
+async def handle_image(image_name: str, max_width: int = 1280, max_height: int = 720):
+    image_path = f'./imgsearch/{image_name}'  # Path to the image
 
-        # Check the size of the image and resize if necessary
-        max_image_pixels = 500000  # จำนวนพิกเซลสูงสุดที่อนุญาตให้ประมวลผล
-        img_width, img_height = img.size
-        print('Image size:', img_width, img_height)
-        if img_width * img_height > max_image_pixels:
-            print('Image too large, resizing...')
-            ratio = sqrt(max_image_pixels / (img_width * img_height))
-            img = img.resize((int(img_width * ratio), int(img_height * ratio)))
+    try:
+        with open(image_path, 'rb') as image_file:
+            # Check cache for processed image
+            cached_image = caches.get("default").get(image_name)
+            if cached_image:
+                return cached_image
 
-        # Save the resized image temporarily and return it to the user
-        temp_img_path = Path(f'./assets/temp_{image_name}')  # Temporary path
-        img.save(temp_img_path, 'JPEG')  # Save the resized image
-        return FileResponse(temp_img_path, media_type='image/jpg')  # Return the resized image
-    else:
-        return {"message": "Image not found"}  # ถ้าไม่พบไฟล์ภาพ ส่งข้อความกลับไปยังผู้ใช้งาน
+            # Open the image using Pillow
+            img = Image.open(image_file)
+
+            # Get the original width and height of the image
+            original_width, original_height = img.size
+
+            # Calculate the new width and height values ให้ความยาวและความกว้างของรูปไม่เกิน max_width และ max_height
+            ratio = min(max_width / original_width, max_height / original_height)
+            new_width = int(original_width * ratio)
+            new_height = int(original_height * ratio)
+
+            # Resize the image
+            img = img.resize((new_width, new_height), Image.ANTIALIAS)
+
+            # Convert the image to JPEG
+            output = BytesIO()
+            img.save(output, optimize=True, quality=60)
+            output.seek(0)
+
+            # Cache the processed image
+            caches.get("default").update({image_name: output})
+
+            # Return the processed image
+            return FileResponse(output, media_type="image/jpeg")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error processing image")
+    
     
 @app.get('/report')
 async def report():
