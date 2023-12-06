@@ -6,6 +6,8 @@ import sqlite3
 import json
 import time
 from PIL import Image
+Image.MAX_IMAGE_PIXELS = None
+from PIL import ImageFile
 import requests
 from sklearn.cluster import KMeans
 class Point:
@@ -82,6 +84,10 @@ class ColorQuantizer:
 
         # Extract RGB values from points
         data = np.array([p.coords for p in points])
+        # Fix Expected 2D array, got 1D array instead
+        if data.ndim == 1:
+            data = data.reshape(-1, 1)
+
         print('Length of data: ',len(data))
 
         # Use scikit-learn's KMeans
@@ -175,6 +181,7 @@ class ColorQuantizer:
         plt.show()
 
     def send_All_to_DB(self):
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
         self.start_time = time.time()
         i = 1
         db = sqlite3.connect('test1.db')

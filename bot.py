@@ -1,12 +1,12 @@
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import TextSendMessage, ImageSendMessage, FlexSendMessage
+from linebot.models import TextSendMessage, ImageSendMessage, FlexSendMessage, StickerSendMessage
 
 #  pip install line-bot-sdk
 from linebot import LineBotSdkDeprecatedIn30
 import warnings
 
-from dotenv import load_dotenv
-import os
+
+import json
 
 class ImgSearchBotLine:
     def __init__(self, channel_access_token, channel_secret, ip_url):
@@ -41,10 +41,23 @@ class ImgSearchBotLine:
             return "Success"
         except Exception as e:
             return e
+        
+    def push_sticker(self, user_id, package_id, sticker_id):
+        try:
+            self.line_bot_api.push_message(
+                user_id,
+                StickerSendMessage(
+                    package_id=package_id, sticker_id=sticker_id
+                ),
+            )
+            return "Success"
+        except Exception as e:
+            print('Sticker Error: ', e)
+            return e
 
     def push_flex(self, user_id, flex):
         try:
-            self.line_bot_api.push_message(user_id, FlexSendMessage(alt_text="hello", contents=flex))
+            self.line_bot_api.push_message(user_id, FlexSendMessage(alt_text="เจอแล้วว!!", contents=flex))
             return "Success"
         except Exception as e:
             return e
@@ -59,7 +72,12 @@ class ImgSearchBotLine:
                 else:
                     url = data["image_url"]
                 url = self.ip + url
-                print(url)
+                if 'http' not in data["url"]:
+                    data["url"] = 'https://gannet-living-safely.ngrok-free.app/imgsearch/' + data["url"]
+                    print('URI: ', data["url"])
+                uri = data["url"]
+                print('URL: ', url)
+
                 bubble_content = {
                     "type": "bubble",
                     "hero": {
@@ -70,7 +88,7 @@ class ImgSearchBotLine:
                         "aspectMode": "cover",
                         "action": {
                         "type": "uri",
-                        "uri": data["url"]
+                        "uri": uri
                         }
                     },
                     "body": {
@@ -78,30 +96,7 @@ class ImgSearchBotLine:
                         "layout": "vertical",
                         "spacing": "sm",
                         "contents": [
-                        {
-                            "type": "text",
-                            "text": data["artwork_name"],
-                            "weight": "bold",
-                            "size": "lg",
-                            "align": "center",  
-                            "wrap": True,
-                            "contents": []
-                        },
-                        {
-                            "type": "box",
-                            "layout": "baseline",
-                            "contents": [
-                            {
-                                "type": "text",
-                                "text": data["artist_name"],
-                                "weight": "regular",
-                                "size": "md",
-                                "flex": 0,
-                                "wrap": True,
-                                "contents": []
-                            }
-                            ]
-                        }
+                            #             
                         ]
                     },
                     "footer": {
@@ -123,9 +118,92 @@ class ImgSearchBotLine:
                     },
                       "size": "deca",
                     }
+                
+                for key in data:
+                    # check len of body contents
+                    lenOfBody = len(bubble_content["body"]["contents"])
+                    if lenOfBody == 0:
+                        weight = 'bold'
+                    else:
+                        weight = 'regular'
+                    if isinstance(data[key], str) and key == 'artwork_name' and data[key] != 'NONE':
+                        # if len(data[key]) > 15:
+                        #     data[key] = data[key][:15] + '...'
+                        # inset box into contents
+                        bubble_content["body"]["contents"].insert(lenOfBody, {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                            {
+                                "type": "text",
+                                "text": data["artwork_name"],
+                                "weight": weight,
+                                "size": "lg",
+                                "flex": 1,
+                                "wrap": True,
+                                "contents": []
+                            }
+                            ]
+                        })
+                    elif isinstance(data[key], str) and key == 'artist_name':
+                        if data[key] != 'NONE':
+                            # if len(data[key]) > 20:
+                            #     data[key] = data[key][:20] + '...'
+                            # inset box into contents
+                            bubble_content["body"]["contents"].insert(lenOfBody, {
+                                "type": "box",
+                                "layout": "baseline",
+                                "contents": [
+                                {
+                                    "type": "text",
+                                    "text": data["artist_name"],
+                                    "weight": weight,
+                                    "size": "md",
+                                    "flex": 0,
+                                    "wrap": True,
+                                    "contents": []
+                                }
+                                ]
+                            })
+                        else:
+                            bubble_content["body"]["contents"].insert(lenOfBody, {
+                                "type": "box",
+                                "layout": "baseline",
+                                "contents": [
+                                {
+                                    "type": "text",
+                                    "text": data["license"],
+                                    "weight": weight,
+                                    "size": "md",
+                                    "flex": 0,
+                                    "wrap": True,
+                                    "contents": []
+                                }
+                                ]
+                            })
+                    elif isinstance(data[key], str) and key == 'exhibition_name' and data[key] != 'NONE':
+                        # if len(data[key]) > 20:
+                        #     data[key] = data[key][:20] + '...'
+                        # inset box into contents
+                        bubble_content["body"]["contents"].insert(lenOfBody, {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                            {
+                                "type": "text",
+                                "text": data["exhibition_name"],
+                                "weight": weight,
+                                "size": "md",
+                                "flex": 0,
+                                "wrap": True,
+                                "contents": []
+                            }
+                            ]
+                        })
                 contents.append(bubble_content)
             return carousel
         except Exception as e:
+            print('Error: ', e)
             return e
 
     def reply_images(self, reply_token, image_path):

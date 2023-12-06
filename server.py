@@ -14,12 +14,13 @@ from fastapi.responses import FileResponse
 import time
 import warnings
 from linebot import LineBotSdkDeprecatedIn30
-import io
+from math import sqrt
 from fastapi import BackgroundTasks
 import json
 import asyncio
 import multiprocessing
 from pathlib import Path
+from PIL import Image
 # เพิ่มการใช้ caching เพื่อลดการเรียกใช้งานไฟล์ที่มีการเข้าถึงซ้ำซ้อน
 from fastapi.staticfiles import StaticFiles
 from fastapi import Form, UploadFile
@@ -133,7 +134,7 @@ async def process(body):
             if message == 'ค้นหาด้วยภาพ':
                 # ImgSearchBotLine.push(user_id, 'ส่งภาพมาเลยจ้า')
                 reply_token = body['events'][0]['replyToken']
-                result = BotLine.reply(reply_token, message)
+                result = BotLine.reply(reply_token, 'ส่งรูปภาพที่ต้องการหามาได้เลยนะค้าบบ 😊')
 
                 # Check the result
                 if result == 'Success':
@@ -146,6 +147,12 @@ async def process(body):
                 return {'message': 'success'}
         
             print(user_data_manager.users_data.get(user_id, {}).get('Phase', 'None'))
+            if message == 'คำแนะนำการใช้งาน':
+                BotLine.push(user_id,'ไม่บอกอะหาวิธีใช้เองดิโตแล้ว')
+                # send sticker to user
+                BotLine.push_sticker(user_id, '6359', '11069858')
+                print('Return "คำแนะนำการใช้งาน" to user')
+                return {'message': 'success'}
         elif body['events'][0]['message']['type'] == 'image' and user_data_manager.users_data.get(user_id, {}).get('Phase', 'None') == 'Waiting for image':
             user_id = body['events'][0]['source']['userId']
             image_id = body['events'][0]['message']['id']
@@ -182,6 +189,10 @@ async def process(body):
             # get image from response and send to user  
             flex_data = []
             for data in response:
+                # if some data is None replace with ''
+                for key in data:
+                    if data[key] is None:
+                        data[key] = 'NONE'
                 print(f'Artwork ID: {data["artwork_id"]} Artwork Name: {data["artwork_name"]} Score: {data["score"]}')
                 flex_data.append({'artwork_id': data['artwork_id'],
                                 'artwork_name': data['artwork_name'],
@@ -205,6 +216,7 @@ async def process(body):
                 print("Reply sent successfully.")
             else:
                 print("Reply sending failed. Error:", x)
+                BotLine.push(user_id, 'ระบบขัดข้อง : ',x,' กรุณารายงานปัญหาเพื่อแก้ไขให้เร็วที่สุด')
             # update user phase
             await user_data_manager.update_user_phase(user_id, 'Waiting for image')
             print('Image sent')
@@ -221,7 +233,9 @@ async def process(body):
             user_id = body['events'][0]['source']['userId']
             message_body = (body['events'][0]['message']['text']) if body['events'][0]['message']['type'] == 'text' else 'None'
             logging.info('Receive message from UserID: ' + user_id + ' Message: ' + message_body)
-            print('No action')
+            # push message to user
+            BotLine.push(user_id, 'กรุณาเลือกเมนูคำสั่งก่อนน้าา🥰')
+            print('Return "กรุณาเลือกเมนูคำสั่งก่อนน้าา🥰" to user')
             # return status 200
             return {'message': 'success'}
     except Exception as e:
@@ -261,9 +275,23 @@ async def handle_user(user_id: int):
 @app.get('/imgsearch/{image_name}')
 async def handle_image(image_name: str):
     image_path = Path(f'./imgsearch/{image_name}')  # กำหนดที่อยู่ของไฟล์ภาพ
-    
     if image_path.is_file():
-        return FileResponse(image_path)  # ส่งไฟล์ภาพกลับไปยังผู้ใช้งาน
+        # Load the image using PIL
+        img = Image.open(image_path)
+
+        # Check the size of the image and resize if necessary
+        max_image_pixels = 500000  # จำนวนพิกเซลสูงสุดที่อนุญาตให้ประมวลผล
+        img_width, img_height = img.size
+        print('Image size:', img_width, img_height)
+        if img_width * img_height > max_image_pixels:
+            print('Image too large, resizing...')
+            ratio = sqrt(max_image_pixels / (img_width * img_height))
+            img = img.resize((int(img_width * ratio), int(img_height * ratio)))
+
+        # Save the resized image temporarily and return it to the user
+        temp_img_path = Path(f'./imgsearch/temp_{image_name}')  # Temporary path
+        img.save(temp_img_path, 'JPEG')  # Save the resized image
+        return FileResponse(temp_img_path, media_type='image/jpg')  # Return the resized image
     else:
         return {"message": "Image not found"}  # ถ้าไม่พบไฟล์ภาพ ส่งข้อความกลับไปยังผู้ใช้งาน
     

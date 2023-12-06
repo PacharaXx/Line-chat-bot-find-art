@@ -45,7 +45,7 @@ class ImageSearcher:
             if filepath.startswith('http'):
                 image = Image.open('./imgsearch/'+filepath.split('/')[-1])
             else:
-                image = Image.open(filepath)
+                image = Image.open('./imgsearch/'+filepath)
             encoded_images.append(image)
         try:
             print('len of encoded_images:',len(encoded_images))
@@ -70,7 +70,7 @@ class ImageSearcher:
                 if image_path.startswith('http'):
                     image_path = './imgsearch/'+image_path.split('/')[-1]
                 else:
-                    image_path = image_path
+                    image_path = './imgsearch/'+image_path
                 self.insert_encodeds_to_db(artwork_id, image_path)
                 print('Saved embedding for', image_path)
             self.conn.close()
