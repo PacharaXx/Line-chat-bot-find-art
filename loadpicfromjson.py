@@ -1,4 +1,5 @@
 import requests
+import os
 import json
 
 def getimgurlfromjson(jsonurl):
@@ -26,12 +27,21 @@ def getimgurlfromjson(jsonurl):
 
 # ทดสอบโปรแกรม
 # load json file from local
-jsonurl = './data2.json'
+jsonurl = './data.json'
 imgurllist = getimgurlfromjson(jsonurl)
 # save image from url into folder 'imgsearch' and file name is last part of url
 for i in imgurllist:
     imgname = i.split('/')[-1]
-    img = requests.get(i)
-    with open('imgsearch/'+imgname, 'wb') as f:
-        f.write(img.content)
-        print('save image: ', imgname)
+    # check if image is already exist dont save
+    if os.path.isfile('./imgsearch/'+imgname):
+        print('image is already exist')
+    else:
+        with open('./imgsearch/'+imgname, 'wb') as handle:
+            response = requests.get(i, stream=True)
+            if not response.ok:
+                print(response)
+            for block in response.iter_content(1024):
+                if not block:
+                    break
+                handle.write(block)
+        print('save image success')
