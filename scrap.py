@@ -7,7 +7,8 @@ import chromedriver_autoinstaller
 import undetected_chromedriver as uc
 import json
 
-lenPage = 20
+lenPage1 = 20
+lenPage2 = 21
 options = uc.ChromeOptions()
 options.add_argument('--ignore-certificate-errors')
 options.add_argument('--incognito')
@@ -24,7 +25,7 @@ def scarpUrl():
     #find
 
     # for 1 - lenPage
-    for i in range(1, lenPage+1):
+    for i in range(1, lenPage1+1):
         driver.get("http://www.resource.lib.su.ac.th/awardsu/web/type.php?option=&keyword=จิตรกรรม&page=" + str(i))
         while True:
             try:
@@ -41,12 +42,30 @@ def scarpUrl():
         # remove duplicate url
         url = list(dict.fromkeys(url))
 
-    print(url)
+    for i in range(1, lenPage2+1):
+        driver.get("http://www.resource.lib.su.ac.th/awardsu/web/type.php?option=&keyword=ภาพพิมพ์&page=" + str(i))
+        while True:
+            try:
+                driver.find_element(By.CSS_SELECTOR, ".info.Sriracha")
+                break
+            except:
+                pass
+        x = driver.find_elements(By.CSS_SELECTOR, ".info.Sriracha")
+        for i in x:
+            url.append(i.get_attribute('href'))
+
+        print(len(url))
+
+        # remove duplicate url
+        url = list(dict.fromkeys(url))
 
     # save url to file
-    with open('url.txt', 'w') as f:
+    with open('url.txt', 'w', encoding='utf-8') as f:
         for item in url:
             f.write("%s\n" % item)
+
+    # Close the WebDriver when done
+    driver.quit()
 
 
 def scrapInfo():
@@ -67,7 +86,7 @@ def scrapInfo():
     # }
 
     # Read the URLs from the file
-    with open('url.txt', 'r') as f:
+    with open('url.txt', 'r', encoding='utf-8') as f:
         urls = [line.strip() for line in f.readlines()]
 
     # Define a dictionary to map data fields to XPaths
@@ -121,10 +140,11 @@ def scrapInfo():
         data.append(scraped_data)
 
     # Save the scraped data to a JSON file
-    with open('data.json', 'w') as outfile:
+    with open('data.json', 'w', encoding='utf-8') as outfile:
         json.dump(data, outfile, ensure_ascii=False, indent=4)
 
     # Close the WebDriver when done
     driver.quit()
 
+# scarpUrl()
 scrapInfo()
