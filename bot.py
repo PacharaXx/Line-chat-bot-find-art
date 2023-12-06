@@ -128,7 +128,7 @@ class ImgSearchBotLine:
                     else:
                         weight = 'regular'
                         size = 'sm'
-                    if isinstance(data[key], str) and key == 'artwork_name' and data[key] != 'NONE':
+                    if isinstance(data[key], str) and key == 'artwork_name' and (data[key] != 'NONE'):
                         # if len(data[key]) > 15:
                         #     data[key] = data[key][:15] + '...'
                         # inset box into contents
@@ -169,22 +169,40 @@ class ImgSearchBotLine:
                                 ]
                             })
                         else:
-                            bubble_content["body"]["contents"].insert(lenOfBody, {
-                                "type": "box",
-                                "layout": "baseline",
-                                "contents": [
-                                {
-                                    "type": "text",
-                                    "text": data["license"],
-                                    "weight": weight,
-                                    "size": size,
-                                    "style": "italic",
-                                    "flex": 0,
-                                    "wrap": True,
-                                    "contents": []
-                                }
-                                ]
-                            })
+                            if data["license"] != 'NONE':
+                                bubble_content["body"]["contents"].insert(lenOfBody, {
+                                    "type": "box",
+                                    "layout": "baseline",
+                                    "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": data["license"],
+                                        "weight": weight,
+                                        "size": size,
+                                        "style": "italic",
+                                        "flex": 0,
+                                        "wrap": True,
+                                        "contents": []
+                                    }
+                                    ]
+                                })
+                            else:
+                                bubble_content["body"]["contents"].insert(lenOfBody, {
+                                    "type": "box",
+                                    "layout": "baseline",
+                                    "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": 'ไม่มีปรากฏชื่อ',
+                                        "weight": weight,
+                                        "size": size,
+                                        "style": "italic",
+                                        "flex": 0,
+                                        "wrap": True,
+                                        "contents": []
+                                    }
+                                    ]
+                                })
                     elif isinstance(data[key], str) and key == 'exhibition_name' and data[key] != 'NONE':
                         # if len(data[key]) > 20:
                         #     data[key] = data[key][:20] + '...'
