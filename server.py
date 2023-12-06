@@ -148,9 +148,7 @@ async def process(body):
         
             print(user_data_manager.users_data.get(user_id, {}).get('Phase', 'None'))
             if message == 'คำแนะนำการใช้งาน':
-                BotLine.push(user_id,'ไม่บอกอะหาวิธีใช้เองดิโตแล้ว')
-                # send sticker to user
-                BotLine.push_sticker(user_id, '6359', '11069858')
+                BotLine.push_image(user_id, ip_url+'assets/instruction.jpg')
                 print('Return "คำแนะนำการใช้งาน" to user')
                 return {'message': 'success'}
         elif body['events'][0]['message']['type'] == 'image' and user_data_manager.users_data.get(user_id, {}).get('Phase', 'None') == 'Waiting for image':
@@ -270,6 +268,11 @@ async def handle_user(user_id: int):
     # Do some processing.
     # Return a response to the user.
     return {'message': 'Request received '+str(user_id)}
+
+@app.get('/assets/{filename}')
+async def assets(filename: str):
+    return FileResponse('./assets/'+filename)
+
 
 # Define a route to handle image requests.
 @app.get('/imgsearch/{image_name}')
