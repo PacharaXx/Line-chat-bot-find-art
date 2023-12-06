@@ -189,7 +189,7 @@ async def process(body):
             for data in response:
                 # if some data is None replace with ''
                 for key in data:
-                    if data[key] is None:
+                    if data[key] is None or data[key] == '':
                         data[key] = 'NONE'
                 print(f'Artwork ID: {data["artwork_id"]} Artwork Name: {data["artwork_name"]} Score: {data["score"]}')
                 flex_data.append({'artwork_id': data['artwork_id'],
@@ -207,7 +207,7 @@ async def process(body):
                                 'url': data['url'],
                                 'score': data['score']})
                 
-                print(flex_data)
+                print(json.dumps(flex_data, indent=4, ensure_ascii=False))
             # create carousel
             caraousel = BotLine.create_carousel(flex_data)
             # send carousel to user
@@ -294,7 +294,7 @@ async def handle_image(image_name: str):
             img = img.resize((int(img_width * ratio), int(img_height * ratio)))
 
         # Save the resized image temporarily and return it to the user
-        temp_img_path = Path(f'./imgsearch/temp_{image_name}')  # Temporary path
+        temp_img_path = Path(f'./assets/temp_{image_name}')  # Temporary path
         img.save(temp_img_path, 'JPEG')  # Save the resized image
         return FileResponse(temp_img_path, media_type='image/jpg')  # Return the resized image
     else:
