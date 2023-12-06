@@ -81,7 +81,7 @@ class ImageSearcher:
     def insert_encodeds_to_db(self, artwork_id, image_path):
         try:
             image = Image.open(image_path)
-            encoded_image = self.model.encode(image, convert_to_tensor=True, show_progress_bar=True)
+            encoded_image = self.model.encode(image, batch_size=128, convert_to_tensor=True, show_progress_bar=True)
             serialized_encoded_image = pickle.dumps(encoded_image)
             cursor = self.conn.cursor()
         #     artwork_encoded_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
@@ -153,7 +153,7 @@ class ImageSearcher:
 
     def find_most_similar_images(self, target_image):
         try:
-            encoded_target_image = self.model.encode(target_image, convert_to_tensor=True, show_progress_bar=True)
+            encoded_target_image = self.model.encode(target_image,batch_size=128, convert_to_tensor=True, show_progress_bar=True)
 
             # Find similar images to the target image
             NUM_SIMILAR_IMAGES = 3
