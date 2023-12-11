@@ -21,7 +21,6 @@ class ColorQuantizer:
         self.start_time = time.time()
         self.filename = filename
         self.thumbnail_size = thumbnail_size
-        self.min_diff = min_diff
         self.img = None
         self.color_names = {
             (0, 0, 255): ("Blue", 1),
@@ -79,7 +78,7 @@ class ColorQuantizer:
         # print(f"Time taken to CALCENTER: {end_time - start_time:.2f} seconds")
         return Point([(v / plen) for v in vals], n, 1)
 
-    def kmeans(self, points, k, min_diff=0):
+    def kmeans(self, points, k):
         self.start_time = time.time()
 
         # Extract RGB values from points
@@ -127,8 +126,6 @@ class ColorQuantizer:
         return smallest_distance, index_of_smallest
 
 
-
-
     def get_color_name(self, rgb):
         # start_time = time.time()
         closest_rgb, index = self.closest(list(self.color_names.keys()), rgb)
@@ -141,7 +138,7 @@ class ColorQuantizer:
     def quantize(self, n):
         self.start_time = time.time()
         points = self.get_points()
-        clusters = self.kmeans(points, n, self.min_diff)
+        clusters = self.kmeans(points, n)
         rgbs = [list(map(int, c.coords)) for c in clusters]
 
         color_descriptions = []
@@ -163,7 +160,7 @@ class ColorQuantizer:
     
     def visualize_palette(self):
         points = self.get_points()
-        clusters = self.kmeans(points, 5, self.min_diff)  # You can specify the number of colors to display
+        clusters = self.kmeans(points, 5)  # You can specify the number of colors to display
         
         palette = [list(map(int, c.coords)) for c in clusters]
         hex_colors = [self.rtoh(rgb) for rgb in palette]
