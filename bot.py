@@ -4,9 +4,13 @@ from linebot.models import TextSendMessage, ImageSendMessage, FlexSendMessage, S
 #  pip install line-bot-sdk
 from linebot import LineBotSdkDeprecatedIn30
 import warnings
-
+import os
+from dotenv import load_dotenv
 
 import json
+
+load_dotenv('./.env')
+ip_url: str = os.getenv('IP_URL')
 
 class ImgSearchBotLine:
     def __init__(self, channel_access_token, channel_secret, ip_url):
@@ -73,7 +77,7 @@ class ImgSearchBotLine:
                     url = data["image_url"]
                 url = self.ip + url
                 if 'http' not in data["url"]:
-                    data["url"] = 'https://gannet-living-safely.ngrok-free.app/imgsearch/' + data["url"]
+                    data["url"] = f'{ip_url}imgsearch/' + data["url"]
                     print('URI: ', data["url"])
                 uri = data["url"]
                 print('URL: ', url)

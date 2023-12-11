@@ -6,7 +6,6 @@ from bot import ImgSearchBotLine
 from imageSearch import ImageSearcher
 from detection import ImageProcessor
 import cv2
-from io import BytesIO
 import numpy as np
 from dotenv import load_dotenv
 import os
@@ -19,15 +18,15 @@ from math import sqrt
 from fastapi import BackgroundTasks
 import json
 import asyncio
-import multiprocessing
-from pathlib import Path
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 from fastapi.staticfiles import StaticFiles
 from fastapi import Form, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from cachetools import LRUCache
+
+from fastapi.templating import Jinja2Templates
+
 # Load .env file
 load_dotenv('./.env')
 ip: str = os.getenv('IP')
@@ -40,7 +39,6 @@ print('IP_URL:', ip_url)
 
 # Create a new FastAPI instance.
 app = FastAPI()
-caches = {"default": LRUCache(maxsize=100)}  # Cache initialization
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
@@ -210,7 +208,7 @@ async def process(body):
                                 'url': data['url'],
                                 'score': data['score']})
                 
-                print(json.dumps(flex_data, indent=4, ensure_ascii=False))
+                # print(json.dumps(flex_data, indent=4, ensure_ascii=False))
             # create carousel
             caraousel = BotLine.create_carousel(flex_data)
             # send carousel to user
@@ -280,50 +278,18 @@ async def assets(filename: str):
 
 
 @app.get('/imgsearch/{image_name}')
-async def handle_image(image_name: str, max_width: int = 1280, max_height: int = 720):
-    image_path = f'./imgsearch/{image_name}'  # Path to the image
+async def handle_image(image_name: str):
+    # Load the image
+    image_path = './imgsearch/' + image_name
+    # Return the image
+    return FileResponse(image_path)
 
-    try:
-        with open(image_path, 'rb') as image_file:
-            # Check cache for processed image
-            cached_image = caches.get("default").get(image_name)
-            if cached_image:
-                return cached_image
-
-            # Open the image using Pillow
-            img = Image.open(image_file)
-
-            # Get the original width and height of the image
-            original_width, original_height = img.size
-
-            # Calculate the new width and height values ให้ความยาวและความกว้างของรูปไม่เกิน max_width และ max_height
-            ratio = min(max_width / original_width, max_height / original_height)
-            new_width = int(original_width * ratio)
-            new_height = int(original_height * ratio)
-
-            # Resize the image
-            img = img.resize((new_width, new_height), Image.ANTIALIAS)
-
-            # Convert the image to JPEG
-            output = BytesIO()
-            img.save(output, optimize=True, quality=60)
-            output.seek(0)
-
-            # Cache the processed image
-            caches.get("default").update({image_name: output})
-
-            # Return the processed image
-            return FileResponse(output, media_type="image/jpeg")
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Image not found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error processing image")
-    
-    
+# Point to the directory containing your templates
+templates = Jinja2Templates(directory="templates")
+# pass the ip to html
 @app.get('/report')
-async def report():
-    # return web page
-    return FileResponse('./report.html')
+async def report(request: Request):
+    return templates.TemplateResponse("report.html", {"request": request, "ip_url": ip_url})
 
 @app.post("/submit_report")
 async def submit_report(header: str = Form(...), report: str = Form(...), image: UploadFile = File(...)):
@@ -380,7 +346,7 @@ if __name__ == '__main__':
     # Create a new ImgSearchBotLine object
 
 
-    num_cpus = multiprocessing.cpu_count()
+    # num_cpus = multiprocessing.cpu_count()
     try:
         # num_workers = num_cpus - 1 if num_cpus > 1 else 1
         # print(f'Number of workers: {num_workers}')
