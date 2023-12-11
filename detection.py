@@ -16,23 +16,23 @@ class ImageProcessor:
     def preprocess_and_crop_image(self):
         starttime = time.time()
         # Convert the input image to grayscale
-        grayscale_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        grayscale_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2GRAY)
         endtime = time.time()
         print(f"Time taken to CONVERT_TO_GRAYSCALE: {endtime - starttime:.2f} seconds")
 
-        # Remove noise
+        # Reduce noise in the image
         starttime = time.time()
         blur = cv2.GaussianBlur(grayscale_img, (5, 5), 200)
         endtime = time.time()
         print(f"Time taken to REMOVE_NOISE: {endtime - starttime:.2f} seconds")
 
-        # Perform Canny edge detection
+        # Detect edges in the image using Canny edge detection
         starttime = time.time()
         edges = cv2.Canny(blur, 100, 100)
         endtime = time.time()
         print(f"Time taken to CANNY_EDGE_DETECTION: {endtime - starttime:.2f} seconds")
 
-        # Find contours in the image as groups
+        # Find contours in the image
         starttime = time.time()
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         endtime = time.time()
@@ -55,18 +55,19 @@ class ImageProcessor:
         endtime = time.time()
         print(f"Time taken to FIND_BOUNDING_BOX: {endtime - starttime:.2f} seconds")
 
-        # Crop the image
+        # Crop the image based on the bounding box
         starttime = time.time()
         cropped_img = self.img[min_y:max_y, min_x:max_x]
         endtime = time.time()
         print(f"Time taken to CROP_IMAGE: {endtime - starttime:.2f} seconds")
 
-        # Convert the processed image to a PIL Image to ensure it's in the expected format
+        # Convert the processed image to a PIL Image
         starttime = time.time()
         result_image = Image.fromarray(cropped_img)
         endtime = time.time()
         print(f"Time taken to CONVERT_TO_PIL_IMAGE: {endtime - starttime:.2f} seconds")
-        # change to RGB
+
+        # Convert the image to RGB format
         starttime = time.time()
         result_image = result_image.convert('RGB')
         endtime = time.time()
