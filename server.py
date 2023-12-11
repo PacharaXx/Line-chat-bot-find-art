@@ -292,7 +292,7 @@ async def report(request: Request):
     return templates.TemplateResponse("report.html", {"request": request, "ip_url": ip_url})
 
 @app.post("/submit_report")
-async def submit_report(header: str = Form(...), report: str = Form(...), image: UploadFile = File(...)):
+async def submit_report(header: str = Form(...), description: str = Form(...), image: UploadFile = File(...)):
     try:
         upload_folder = "./uploaded_images"
         os.makedirs(upload_folder, exist_ok=True)
@@ -303,9 +303,9 @@ async def submit_report(header: str = Form(...), report: str = Form(...), image:
         
         conn = sqlite3.connect('report.db')
         cursor = conn.cursor()
-        cursor.execute('CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, header TEXT, report TEXT, image_filename TEXT)')
+        cursor.execute('CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, header TEXT, description TEXT, image_filename TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
         
-        cursor.execute('INSERT INTO reports (header, report, image_filename) VALUES (?, ?, ?)', (header, report, image.filename))
+        cursor.execute('INSERT INTO reports (header, description, image_filename) VALUES (?, ?, ?)', (header, description, image.filename))
         last_inserted_id = cursor.lastrowid
         
         new_image_filename = f"{last_inserted_id}.jpg"

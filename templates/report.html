@@ -24,7 +24,7 @@
                     </div>
                     <div class="form-group">
                         <label for="report">Report</label>
-                        <textarea class="form-control" id="report" rows="5" placeholder="Enter report details"></textarea>
+                        <textarea class="form-control" id="description" rows="5" placeholder="Enter report details"></textarea>
                     </div>
                     <div class="form-group">
                         <label for="image">Attach Image</label>
@@ -50,7 +50,7 @@
 
                 var formData = new FormData();
                 formData.append('header', $('#Header').val());
-                formData.append('report', $('#report').val());
+                formData.append('description', $('#description').val());
                 formData.append('image', $('#image')[0].files[0]); // Get the first file from the input
 
                 var endpointUrl = '{{ ip_url }}submit_report';
