@@ -164,10 +164,13 @@ async def process(body):
             imgArgumentation = ImageProcessor()
             # Get the image content
             image_bytes = image_content.content
-            # Convert the image data to a format that OpenCV can read
+            # Convert the image content to a numpy array
             nparr = np.frombuffer(image_bytes, np.uint8)
+            # Convert the numpy array to an OpenCV image object
             img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            # Convert the image from BGR to RGB
             img_rgb = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
+            # Set the image
             imgArgumentation.set_img(img_rgb)
             endtime = time.time()
             print('Set image time and convert to RGB:', endtime - starttime)
