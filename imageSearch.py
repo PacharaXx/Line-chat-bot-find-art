@@ -168,20 +168,18 @@ class ImageSearcher:
                 # Extract the filenames of the most similar images
                 most_similar_image_paths = [self.encoded_images[i]['artwork_id'] for i in similar_image_indices]
                 print('most_similar_image_paths:', most_similar_image_paths)
+                
+                conn = sqlite3.connect('test1.db')
+                cursor = conn.cursor()
+                artworks = []
+                for image_path in most_similar_image_paths:
+                    sql = f"SELECT artwork_id, artwork_name, artist_name, artwork_type, artwork_size, artwork_technique, exhibition_name, award_name, license, concept, detail, image_url, url FROM Artworks WHERE artwork_id = ?"
+                    cursor.execute(sql, (image_path,))
+                    row = cursor.fetchone()
+                    artworks.append({'artwork_id':row[0],'artwork_name':row[1],'artist_name':row[2],'artwork_type':row[3],'artwork_size':row[4],'artwork_technique':row[5],'exhibition_name':row[6],'award_name':row[7],'license':row[8],'concept':row[9],'detail':row[10],'image_url':row[11],'url':row[12],'score':scores[most_similar_image_paths.index(image_path)]})
+                return artworks
             else:
                 print("Invalid structure in similar_images or no results found.")
-
-            # get data from db by use image_names 
-            # fetch image names from db to list by color
-            conn = sqlite3.connect('test1.db')
-            cursor = conn.cursor()
-            artworks = []
-            for image_path in most_similar_image_paths:
-                sql = f"SELECT artwork_id, artwork_name, artist_name, artwork_type, artwork_size, artwork_technique, exhibition_name, award_name, license, concept, detail, image_url, url FROM Artworks WHERE artwork_id = ?"
-                cursor.execute(sql, (image_path,))
-                row = cursor.fetchone()
-                artworks.append({'artwork_id':row[0],'artwork_name':row[1],'artist_name':row[2],'artwork_type':row[3],'artwork_size':row[4],'artwork_technique':row[5],'exhibition_name':row[6],'award_name':row[7],'license':row[8],'concept':row[9],'detail':row[10],'image_url':row[11],'url':row[12],'score':scores[most_similar_image_paths.index(image_path)]})
-            return artworks
 
         except Exception as e:
             print(e)
@@ -200,10 +198,14 @@ class ImageSearcher:
             self.set_list_color_target()
             colors = self.list_color_target
             self.conn = sqlite3.connect('test1.db')
+            # Load the encoded images from the database
             self.set_encoded_images()
             for color in colors:
+                # Load the image names from the database
                 self.load_images_from_db(color)
-                self.load_images()
+                # # Load the encoded images
+                # self.load_images()
+                # Find the most similar image
                 artworks = self.find_most_similar_images(self.target)
                 if artworks is not None:
                     return artworks
