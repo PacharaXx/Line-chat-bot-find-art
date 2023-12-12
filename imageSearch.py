@@ -6,7 +6,6 @@ import sqlite3
 import time
 import pickle
 
-
 class ImageSearcher:
     def __init__(self):
         self.model = None
@@ -14,6 +13,7 @@ class ImageSearcher:
         self.image_names = None
         self.target = None
         self.list_color_target = []
+        self.conn = None
 
     def set_image_names(self, image_names):
         self.image_names = image_names
@@ -38,24 +38,6 @@ class ImageSearcher:
     def load_model(self):
         self.model = SentenceTransformer(self.model)
 
-    def load_images(self):
-        startLoadImage = time.time()
-        encoded_images = []
-        for filepath in self.image_names:
-            if filepath.startswith('http'):
-                image = Image.open('./imgsearch/'+filepath.split('/')[-1])
-            else:
-                image = Image.open('./imgsearch/'+filepath)
-            encoded_images.append(image)
-        try:
-            print('len of encoded_images:',len(encoded_images))
-            # self.encoded_images = self.model.encode(encoded_images,batch_size=128, convert_to_tensor=True, show_progress_bar=True)
-            endLoadImage = time.time()
-            print('Time load images:',endLoadImage-startLoadImage)
-        except Exception as e:
-            print(e)
-            return e
-        
     def get_artwork_data_from_db(self):
         cursor = self.conn.cursor()
         cursor.execute("SELECT artwork_id, image_url FROM Artworks")
@@ -96,60 +78,84 @@ class ImageSearcher:
             print(e)
             return e
         
-    def load_encodeds_from_db(self):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT artwork_id, encoded FROM ArtworkEncodeds")
-        rows = cursor.fetchall()
-        cursor.close()
+    # def load_encodeds_from_db(self):
+    #     cursor = self.conn.cursor()
+    #     cursor.execute("SELECT artwork_id, encoded FROM ArtworkEncodeds")
+    #     rows = cursor.fetchall()
+    #     cursor.close()
 
-        encodeds = []
-        for row in rows:
-            artwork_id, encoded_blob = row
-            # Deserialize the encoded blob back into the original format (e.g., TensorFlow tensor)
-            encoded = pickle.loads(encoded_blob)
-            encodeds.append({'artwork_id': artwork_id, 'encoded': encoded})
-        return encodeds
+    #     encodeds = []
+    #     for row in rows:
+    #         artwork_id, encoded_blob = row
+    #         # Deserialize the encoded blob back into the original format (e.g., TensorFlow tensor)
+    #         encoded = pickle.loads(encoded_blob)
+    #         encodeds.append({'artwork_id': artwork_id, 'encoded': encoded})
+    #     return encodeds
 
     def set_encoded_images(self, encoded_images=None):
         if encoded_images is None:
-            self.encoded_images = self.load_encodeds_from_db()
-            print('len of encoded_images:', len(self.encoded_images))
+            self.encoded_images = []
         else:
             self.encoded_images = encoded_images
 
     def load_images_from_db(self, color):
         startLoadDB = time.time()
-
         try:
             # Load image names from the database based on the specified color
-            conn = sqlite3.connect('test1.db')
-            cursor = conn.cursor()
+            self.conn = sqlite3.connect('test1.db')  # Establish connection
+            cursor = self.conn.cursor()
 
-            # Create the SQL query to fetch image URLs by color
-            sql = "SELECT image_url FROM Artworks WHERE artwork_id IN (SELECT artwork_id FROM ArtworkColors WHERE color_name = ?)"
-            cursor.execute(sql, (color,))
-            result = cursor.fetchall()
+            # Create the SQL query to fetch artwork_id by color
+            sql = """
+                SELECT artwork_id FROM ArtworkColors
+                WHERE color_name = ?
+            """
 
-            if not result:
+            # Execute the SQL query
+            cursor.execute(sql, (color,))   
+            artwork_ids = cursor.fetchall()
+            artwork_ids = [str(id[0]) for id in artwork_ids]  # Flatten tuple to list of strings
+            # print len of artwork_ids that have color target
+            print('Len Of artwork_ids:',len(artwork_ids))
+
+            if artwork_ids:  # Check if artwork_ids is not empty
+                # Create the SQL query to fetch artwork_encodeds by artwork_id
+                sql = """
+                    SELECT artwork_id, encoded FROM ArtworkEncodeds
+                    WHERE artwork_id IN ({})
+                """.format(', '.join('?' for _ in artwork_ids))
+
+                # Execute the SQL query with flattened artwork_ids list
+                cursor.execute(sql, artwork_ids)
+                rows = cursor.fetchall()
+
+                # Deserialize the encoded blob back into the original format
+                encoded_images = []
+                for row in rows:
+                    artwork_id, encoded_blob = row
+                    encoded = pickle.loads(encoded_blob)
+                    encoded_images.append({'artwork_id': artwork_id, 'encoded': encoded})
+
+                # Set the encoded images
+                self.set_encoded_images(encoded_images)
+                print('Loaded encoded images from the database successfully')
+            else:
                 print('No images found for the specified color')
-                return
-
-            # Extract image URLs from the result set
-            image_names = [row[0] for row in result]
-
-            # Set image_names attribute in your class
-            self.set_image_names(image_names)
 
             print('Loaded image URLs from the database successfully')
         except sqlite3.Error as e:
             print("Error fetching image URLs from the database:", str(e))
         finally:
             # Close the cursor and the database connection
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if self.conn:
+                self.conn.close()
 
         endLoadDB = time.time()
         print('Time load image_names from db:', endLoadDB - startLoadDB)
+
+    
 
     def find_most_similar_images(self, target_image):
         try:
@@ -173,10 +179,16 @@ class ImageSearcher:
                 cursor = conn.cursor()
                 artworks = []
                 for image_path in most_similar_image_paths:
-                    sql = f"SELECT artwork_id, artwork_name, artist_name, artwork_type, artwork_size, artwork_technique, exhibition_name, award_name, license, concept, detail, image_url, url FROM Artworks WHERE artwork_id = ?"
+                    sql = """SELECT artwork_id, artwork_name, artist_name, artwork_type, artwork_size,
+                            artwork_technique, exhibition_name, award_name, license, concept, detail, image_url,
+                            url FROM Artworks WHERE artwork_id = ?"""
                     cursor.execute(sql, (image_path,))
                     row = cursor.fetchone()
-                    artworks.append({'artwork_id':row[0],'artwork_name':row[1],'artist_name':row[2],'artwork_type':row[3],'artwork_size':row[4],'artwork_technique':row[5],'exhibition_name':row[6],'award_name':row[7],'license':row[8],'concept':row[9],'detail':row[10],'image_url':row[11],'url':row[12],'score':scores[most_similar_image_paths.index(image_path)]})
+                    artworks.append({'artwork_id':row[0],'artwork_name':row[1],'artist_name':row[2],
+                                    'artwork_type':row[3],'artwork_size':row[4],'artwork_technique':row[5],
+                                    'exhibition_name':row[6],'award_name':row[7],'license':row[8],'concept':row[9],
+                                    'detail':row[10],'image_url':row[11],'url':row[12],
+                                    'score':scores[most_similar_image_paths.index(image_path)]})
                 return artworks
             else:
                 print("Invalid structure in similar_images or no results found.")
@@ -198,13 +210,10 @@ class ImageSearcher:
             self.set_list_color_target()
             colors = self.list_color_target
             self.conn = sqlite3.connect('test1.db')
-            # Load the encoded images from the database
-            self.set_encoded_images()
             for color in colors:
-                # Load the image names from the database
+                # Load image names from the database based on the specified color 
+                # and set the encoded images
                 self.load_images_from_db(color)
-                # # Load the encoded images
-                # self.load_images()
                 # Find the most similar image
                 artworks = self.find_most_similar_images(self.target)
                 if artworks is not None:
