@@ -5,6 +5,7 @@ from colorclassification import ColorQuantizer
 import sqlite3
 import time
 import pickle
+import numpy as np
 
 class ImageSearcher:
     def __init__(self):
@@ -104,19 +105,38 @@ class ImageSearcher:
             # Load image names from the database based on the specified color
             self.conn = sqlite3.connect('test1.db')  # Establish connection
             cursor = self.conn.cursor()
+            if isinstance(color, list):
+                color = list(set(color))
+                # Create the SQL query to fetch artwork_id by color
+                sql = """
+                    SELECT artwork_id FROM ArtworkColors
+                    WHERE color_name IN ({})
+                """.format(', '.join('?' for _ in color))
 
-            # Create the SQL query to fetch artwork_id by color
-            sql = """
-                SELECT artwork_id FROM ArtworkColors
-                WHERE color_name = ?
-            """
-
-            # Execute the SQL query
-            cursor.execute(sql, (color,))   
+                # Execute the SQL query with flattened color list
+                cursor.execute(sql, color)
+            else:
+                # Create the SQL query to fetch artwork_id by color
+                sql = """
+                    SELECT artwork_id FROM ArtworkColors
+                    WHERE color_name = ?
+                """
+                # Execute the SQL query
+                cursor.execute(sql, (color,))
+            # # Create the SQL query to fetch artwork_id by color
+            # sql = """
+            #     SELECT artwork_id FROM ArtworkColors
+            #     WHERE color_name = ?
+            # """
+            # print('color:',color)
+            # # Execute the SQL query
+            # cursor.execute(sql, (color,))   
             artwork_ids = cursor.fetchall()
-            artwork_ids = [str(id[0]) for id in artwork_ids]  # Flatten tuple to list of strings
+            artwork_ids = [artwork_id[0] for artwork_id in artwork_ids]
+            artwork_ids = list(set(artwork_ids))
             # print len of artwork_ids that have color target
-            print('Len Of artwork_ids:',len(artwork_ids))
+            # uniqe_artwork_ids = set(artwork_ids)
+            print('Len Of artwork_ids:',len(set(artwork_ids)))
 
             if artwork_ids:  # Check if artwork_ids is not empty
                 # Create the SQL query to fetch artwork_encodeds by artwork_id
@@ -138,6 +158,7 @@ class ImageSearcher:
 
                 # Set the encoded images
                 self.set_encoded_images(encoded_images)
+
                 print('Loaded encoded images from the database successfully')
             else:
                 print('No images found for the specified color')
@@ -155,10 +176,62 @@ class ImageSearcher:
         endLoadDB = time.time()
         print('Time load image_names from db:', endLoadDB - startLoadDB)
 
-    
+    # Function to calculate cosine similarity between two vectors
+    def cosine_similarity(self,vector1, vector2):
+        dot_product = np.dot(vector1, vector2)
+        norm_vector1 = np.linalg.norm(vector1)
+        norm_vector2 = np.linalg.norm(vector2)
+        cosine_similarity = dot_product / (norm_vector1 * norm_vector2)
+        return cosine_similarity
 
     def find_most_similar_images(self, target_image):
         try:
+            # encoded_target_image = self.model.encode(target_image, batch_size=128, convert_to_tensor=True, show_progress_bar=True)
+            # encoded_images = [entry['encoded'] for entry in self.encoded_images]
+
+        #     # Calculate similarity with each encoded image
+        #     similarities = []
+        #     for encoded_image in encoded_images:
+        #         similarity = self.cosine_similarity(encoded_target_image, encoded_image)
+        #         similarities.append(similarity)
+
+        #     # Find the indices of most similar images (top-k)
+        #     NUM_SIMILAR_IMAGES = 3  # Example: Find top 2 similar images
+        #     most_similar_indices = np.argsort(similarities)[::-1][:NUM_SIMILAR_IMAGES]
+
+        #     # Get the most similar images based on indices
+        #     most_similar_images = [encoded_images[i] for i in most_similar_indices]
+
+        #     # Print the most similar images
+        #     print("Most similar images:")
+        #     for idx, image in enumerate(most_similar_images):
+        #         print(f"Similarity {idx+1}: {similarities[most_similar_indices[idx]]} - Artwork ID: {self.encoded_images[most_similar_indices[idx]]['artwork_id']}")
+
+        #     if most_similar_images:
+        #         most_similar_image_paths = [self.encoded_images[i]['artwork_id'] for i in most_similar_indices]
+        #         print('most_similar_image_paths:', most_similar_image_paths)
+
+        #         conn = sqlite3.connect('test1.db')
+        #         cursor = conn.cursor()
+        #         artworks = []
+        #         for image_path in most_similar_image_paths:
+        #             sql = """SELECT artwork_id, artwork_name, artist_name, artwork_type, artwork_size,
+        #                     artwork_technique, exhibition_name, award_name, license, concept, detail, image_url,
+        #                     url FROM Artworks WHERE artwork_id = ?"""
+        #             cursor.execute(sql, (image_path,))
+        #             row = cursor.fetchone()
+        #             artworks.append({'artwork_id':row[0],'artwork_name':row[1],'artist_name':row[2],
+        #                             'artwork_type':row[3],'artwork_size':row[4],'artwork_technique':row[5],
+        #                             'exhibition_name':row[6],'award_name':row[7],'license':row[8],'concept':row[9],
+        #                             'detail':row[10],'image_url':row[11],'url':row[12],
+        #                             'score':similarities[most_similar_image_paths.index(image_path)]})
+        #         return artworks
+        #     else:
+        #         print("Invalid structure in similar_images or no results found.")
+        # except Exception as e:
+        #     print(e)
+        #     return e
+
             encoded_target_image = self.model.encode(target_image,batch_size=128, convert_to_tensor=True, show_progress_bar=True)
 
             # Find similar images to the target image
@@ -210,16 +283,15 @@ class ImageSearcher:
             self.set_list_color_target()
             colors = self.list_color_target
             self.conn = sqlite3.connect('test1.db')
-            for color in colors:
-                # Load image names from the database based on the specified color 
-                # and set the encoded images
-                self.load_images_from_db(color)
-                # Find the most similar image
-                artworks = self.find_most_similar_images(self.target)
-                if artworks is not None:
-                    return artworks
-                else:
-                    return 'No images found'
+            # Load image names from the database based on the specified color 
+            # and set the encoded images
+            self.load_images_from_db(colors)
+            # Find the most similar image
+            artworks = self.find_most_similar_images(self.target)
+            if artworks is not None:
+                return artworks
+            else:
+                return 'No images found'
         except Exception as e:
             # Handle exceptions and return an error message
             error_message = {'error': str(e)}

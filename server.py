@@ -114,8 +114,15 @@ async def process(body):
     current_time = time.strftime("%a %b %d %Y,%H:%M:%S", time.localtime())
     print(events)
     user_id = body['events'][0]['source']['userId']
-    message_type = (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'text' else (body['events'][0]['message']['type']) if body['events'][0]['message']['type'] == 'image' else 'None'
-    message_body = (body['events'][0]['message']['text']) if body['events'][0]['message']['type'] == 'text' else 'None'
+    if body['events'][0]['message']['type'] == 'text':
+        message_type = 'text'
+        message_body = (body['events'][0]['message']['text'])
+    elif body['events'][0]['message']['type'] == 'image':
+        message_type = 'image'
+        message_body = (body['events'][0]['message']['id'])
+    else:
+        message_type = 'None'
+        message_body = 'None'
 
     log_message = (
         f"---------Webhook Event---------\n"
@@ -223,7 +230,7 @@ async def process(body):
                 print("Reply sending failed. Error:", x)
                 BotLine.push(user_id, f'ระบบขัดข้อง : {x} กรุณารายงานปัญหาเพื่อแก้ไขให้เร็วที่สุด')
             # update user phase
-            await user_data_manager.update_user_phase(user_id, 'Waiting for image')
+            await user_data_manager.update_user_phase(user_id, 'Image sent')
             print('Image sent')
             # ------- for debug -------
             print(log_message)
