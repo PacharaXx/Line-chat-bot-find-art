@@ -1,8 +1,8 @@
-Line Chatbot for Similar Artworks
+**Line Chatbot for Similar Artworks**
 
 This is a Line chatbot designed to help users find similar artworks in a database. This project leverages the Line Messaging API to provide a seamless and interactive experience for art enthusiasts.
 
-## Table of Contents
+**## Table of Contents**
 
 - [ArtBot - Line Chatbot for Similar Artworks](#artbot---fastapi-line-chatbot-for-similar-artworks)
   - [Introduction](#introduction)
@@ -15,21 +15,21 @@ This is a Line chatbot designed to help users find similar artworks in a databas
   - [License](#license)
   - [Acknowledgments](#acknowledgments)
 
-## Introduction
+**## Introduction**
 
 This is a Line chatbot that utilizes an advanced algorithm to find similar artworks in a database based on user input image.
 
-## Features
+**## Features**
 
  - Crop Image
  - Find Dominant color
  - find similar artwork
 
-## Getting Started
+**## Getting Started**
 
 Follow these steps to set up ArtBot and start using it.
 
-### Prerequisites
+**### Prerequisites**
 
 Before you begin, make sure you have the following installed:
 
@@ -38,15 +38,16 @@ Before you begin, make sure you have the following installed:
 - [Uvicorn](https://www.uvicorn.org/)
 - Line Developer Account (for API access)
 
-### Installation
+**### Installation**
 
 1. Clone the ArtBot repository:
 
 ```bash 
 $ git clone https://github.com/PacharaXx/Thesis
 $ cd Thesis
+```
 
 2. Install Python dependencies:
 ```bash
 $ pip install -r requirements.txt
-
+```
