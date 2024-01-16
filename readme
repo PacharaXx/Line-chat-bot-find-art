@@ -1,130 +1,52 @@
-Certainly, here's an example codebase for a project that combines FastAPI, the `ImageSearcher` class, a SQLite database, and SQLAlchemy for image similarity search and database operations. Please note that this is a simplified example, and in a real-world project, you would need to structure your project and code more extensively.
+Line Chatbot for Similar Artworks
 
-1. **Directory Structure**:
+This is a Line chatbot designed to help users find similar artworks in a database. This project leverages the Line Messaging API to provide a seamless and interactive experience for art enthusiasts.
 
-   ```
-   project_directory/
-   ├── app/
-   │   ├── main.py
-   │   ├── models.py
-   │   └── database.py
-   ├── image_search/
-   │   └── image_searcher.py
-   ├── db/
-   │   └── images.db
-   ├── requirements.txt
-   └── .env
-   ```
+## Table of Contents
 
-2. **requirements.txt**:
+- [ArtBot - Line Chatbot for Similar Artworks](#artbot---fastapi-line-chatbot-for-similar-artworks)
+  - [Introduction](#introduction)
+  - [Features](#features)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+  - [Usage](#usage)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Acknowledgments](#acknowledgments)
 
-   ```plaintext
-   fastapi
-   uvicorn
-   sqlalchemy
-   line-bot-sdk
-   sentence-transformers
-   pillow
-   ```
+## Introduction
 
-3. **.env**:
+This is a Line chatbot that utilizes an advanced algorithm to find similar artworks in a database based on user input image.
 
-   This file should contain your environment variables, such as Line Bot API tokens and secrets. 
+## Features
 
-4. **app/models.py**:
+ - Crop Image
+ - Find Dominant color
+ - find similar artwork
 
-   ```python
-   from sqlalchemy import Column, Integer, String
-   from sqlalchemy.ext.declarative import declarative_base
+## Getting Started
 
-   Base = declarative_base()
+Follow these steps to set up ArtBot and start using it.
 
-   class ImageInfo(Base):
-       __tablename__ = 'image_info'
+### Prerequisites
 
-       id = Column(Integer, primary_key=True)
-       image_path = Column(String)
-       description = Column(String)
-       tags = Column(String)
-   ```
+Before you begin, make sure you have the following installed:
 
-5. **app/database.py**:
+- Python 3.x
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Uvicorn](https://www.uvicorn.org/)
+- Line Developer Account (for API access)
 
-   ```python
-   from sqlalchemy import create_engine
-   from sqlalchemy.orm import sessionmaker
-   from models import Base
+### Installation
 
-   # Replace 'sqlite:///images.db' with your actual database URL
-   database_url = 'sqlite:///images.db'
-   engine = create_engine(database_url)
-   SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-   ```
+1. Clone the ArtBot repository:
 
-6. **image_search/image_searcher.py**:
+```bash 
+$ git clone https://github.com/PacharaXx/Thesis
+$ cd Thesis
 
-   Your `ImageSearcher` class, as described in the previous responses.
+2. Install Python dependencies:
+```bash
+$ pip install -r requirements.txt
 
-7. **app/main.py**:
-
-   ```python
-   from fastapi import FastAPI, UploadFile, Form, File
-   from starlette.responses import JSONResponse
-   from app.models import ImageInfo
-   from app.database import SessionLocal
-   from image_search.image_searcher import ImageSearcher
-   from PIL import Image
-   import io
-   import logging
-   import os
-
-   app = FastAPI()
-
-   # Initialize the ImageSearcher
-   image_searcher = ImageSearcher(model_name='clip-ViT-B-32')
-   image_searcher.set_image_names(['list', 'of', 'image', 'paths'])  # Set image names
-   image_searcher.load_images()  # Load images
-
-   @app.post("/search_similar_images")
-   async def search_similar_images(
-       target_image: UploadFile = File(...),
-       user_id: str = Form(...),
-   ):
-       try:
-           # Check if the uploaded file is an image
-           if target_image.content_type not in ("image/jpeg", "image/png"):
-               return JSONResponse(content={"error": "Invalid image format"}, status_code=400)
-
-           # Read the uploaded image
-           image_bytes = await target_image.read()
-           target_image = Image.open(io.BytesIO(image_bytes)
-
-           # Perform the image search
-           most_similar_images = image_searcher.run_test(target_image)
-
-           # Database query using SQLAlchemy
-           db = SessionLocal()
-           similar_images_info = []
-           for image_path in most_similar_images:
-               image_info = db.query(ImageInfo).filter_by(image_path=image_path).first()
-               if image_info:
-                   similar_images_info.append({
-                       "image_path": image_path,
-                       "description": image_info.description,
-                       "tags": image_info.tags,
-                   })
-           db.close()
-
-           # Now you have a list of dictionaries containing information about the most similar images.
-           return {"most_similar_images": similar_images_info}
-       except Exception as e:
-           logging.error(f"Error: {str(e)}")
-           return JSONResponse(content={"error": "Internal server error"}, status_code=500)
-
-   if __name__ == "__main__":
-       uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
-   ```
-
-   In this code, we have integrated the `ImageSearcher` with FastAPI and performed a database query using SQLAlchemy. The `ImageInfo` model represents the database table, and we use SQLAlchemy for database operations.
-
-   This example serves as a starting point for a project that combines image similarity search with a database. You should adapt it to your specific use case and add more features and security measures as needed.
