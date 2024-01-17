@@ -37,6 +37,7 @@ Before you begin, make sure you have the following installed:
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [Uvicorn](https://www.uvicorn.org/)
 - Line Developer Account (for API access)
+- ngrok
 
 **### Installation**
 
@@ -49,5 +50,39 @@ $ cd Thesis
 
 2. Install Python dependencies:
 ```bash
-$ pip install -r requirements.txt
+$ pip install-r requirements.txt
 ```
+
+3. Set up your Line Messaging API credentials in the env file.
+```
+  IP = localhost
+  TOKEN = 
+  CHANNEL_SECRET = 
+  IP_URL = 'https://xxxxxxxxxxxxxxx.ngrok-free.app/'
+```
+4. Run a Ngrok
+```bash
+$ ngrok http --domain=xxxxxxxxxxxxx.ngrok-free.app 8080
+```
+
+5. Start the server.py
+```bash
+$ python server.py
+```
+
+Now, it should be up and running!
+
+Usage
+1. Add ArtBot as a friend on Line.
+2. Select menu
+3. Send an image
+4. Receive similar artworks and explore the world of art!
+
+DEMO
+https://github.com/PacharaXx/Thesis/assets/128677831/f9c059bb-ac1f-43fb-b182-38b62c642cc5
+
+
+
+
+
+
