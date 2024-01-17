@@ -11,9 +11,6 @@ This is a Line chatbot designed to help users find similar artworks in a databas
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
   - [Usage](#usage)
-  - [Contributing](#contributing)
-  - [License](#license)
-  - [Acknowledgments](#acknowledgments)
 
 **## Introduction**
 
