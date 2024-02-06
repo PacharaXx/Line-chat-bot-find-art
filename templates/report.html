@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>User Report Page</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- SweetAlert CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@10" rel="stylesheet">
+</head>
+
+<body>
+
+    <div class="container mt-5">
+        <h1 class="text-center">User Report Page</h1>
+        <div class="row mt-4">
+            <div class="col-md-6 offset-md-3 col-sm-12">
+                <form id="reportForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="Header">Header</label>
+                        <input type="text" class="form-control" id="Header" placeholder="Enter Header">
+                    </div>
+                    <div class="form-group">
+                        <label for="report">Report</label>
+                        <textarea class="form-control" id="description" rows="5" placeholder="Enter report details"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="image">Attach Image</label>
+                        <input type="file" class="form-control-file" id="image" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Submit Report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- SweetAlert JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+
+    <script>
+        $(document).ready(function () {
+            $('#reportForm').submit(function (e) {
+                e.preventDefault();
+
+                var formData = new FormData();
+                formData.append('header', $('#Header').val());
+                formData.append('description', $('#description').val());
+                formData.append('image', $('#image')[0].files[0]); // Get the first file from the input
+
+                var endpointUrl = '{{ ip_url }}submit_report';
+
+                $.ajax({
+                    url: endpointUrl,
+                    method: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (response) {
+                        console.log('Report submitted successfully:', response);
+                        // Show SweetAlert notification on success
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Report Submitted',
+                            text: 'Your report has been submitted successfully!',
+                            timer: 3000, // Close alert after 3 seconds
+                            showConfirmButton: false
+                        });
+                    },
+                    error: function (error) {
+                        console.error('Error submitting report:', error);
+                        // Show SweetAlert error message on failure (optional)
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Submission Error',
+                            text: 'There was an error while submitting the report. Please try again.'+error,
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
